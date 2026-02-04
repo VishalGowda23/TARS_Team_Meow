@@ -1,0 +1,523 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    Key,
+    Shield,
+    Plus,
+    Copy,
+    CheckCircle2,
+    AlertCircle,
+    Clock,
+    Users,
+    Lock,
+    Unlock,
+    Crown,
+    ShieldAlert,
+    AlertTriangle,
+} from 'lucide-react';
+import AccessKeyGenerator from '@/components/keys/AccessKeyGenerator';
+import EntityToggle from '@/components/keys/EntityToggle';
+
+// Mock evidence for key management - only verified evidence with consensus
+const mockEvidence = [
+    {
+        id: 'TARS-9P4L3N',
+        fileName: 'internal_memo_leak.docx',
+        status: 'verified' as const,
+        signatures: 3,
+        requiredSignatures: 3,
+        consensusReached: true,
+    },
+    {
+        id: 'TARS-2H5J8Q',
+        fileName: 'safety_violation_photos.zip',
+        status: 'verified' as const,
+        signatures: 3,
+        requiredSignatures: 3,
+        consensusReached: true,
+    },
+    {
+        id: 'TARS-7X92K1',
+        fileName: 'pending_evidence.pdf',
+        status: 'orbiting' as const,
+        signatures: 1,
+        requiredSignatures: 3,
+        consensusReached: false,
+    },
+];
+
+// Mock authorized entities
+const mockEntities = [
+    { id: '1', name: 'The Press', type: 'Media', hasAccess: true, grantedAt: '2024-01-14T12:00:00Z' },
+    { id: '2', name: 'Legal Council', type: 'Legal', hasAccess: true, grantedAt: '2024-01-15T09:30:00Z' },
+    { id: '3', name: 'Regulatory Authority', type: 'Government', hasAccess: false },
+    { id: '4', name: 'Internal Audit', type: 'Corporate', hasAccess: false },
+    { id: '5', name: 'Independent Investigator', type: 'Legal', hasAccess: false },
+];
+
+export default function KeysPage() {
+    const router = useRouter();
+    const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+    const [userEmail, setUserEmail] = useState('');
+    const [selectedEvidence, setSelectedEvidence] = useState(mockEvidence[0]);
+    const [entities, setEntities] = useState(mockEntities);
+    const [showGenerator, setShowGenerator] = useState(false);
+    const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+
+    // Check for higher authority access
+    useEffect(() => {
+        const userRole = localStorage.getItem('tars-user-role');
+        const email = localStorage.getItem('tars-user-email');
+
+        if (userRole === 'higher-authority') {
+            setIsAuthorized(true);
+            setUserEmail(email || 'admin@tars.network');
+        } else {
+            setIsAuthorized(false);
+        }
+    }, []);
+
+    // Show loading while checking authorization
+    if (isAuthorized === null) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                >
+                    <Shield className="w-8 h-8 text-[var(--platinum)]" />
+                </motion.div>
+            </div>
+        );
+    }
+
+    // Show access denied for non-higher-authority users
+    if (!isAuthorized) {
+        return (
+            <div className="min-h-screen flex items-center justify-center p-8">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="max-w-md w-full glass p-8 text-center"
+                >
+                    <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-500/20 flex items-center justify-center">
+                        <ShieldAlert className="w-10 h-10 text-red-400" />
+                    </div>
+
+                    <h1
+                        className="text-2xl font-bold text-[var(--platinum)] mb-3"
+                        style={{ fontFamily: 'var(--font-display)' }}
+                    >
+                        Access Denied
+                    </h1>
+
+                    <p className="text-[var(--silver-medium)] mb-6">
+                        This area is restricted to <span className="text-amber-400 font-bold">Higher Authority</span> personnel only.
+                        Only Agency Administrators and Senior Officers have access to the Key Master.
+                    </p>
+
+                    <div className="p-4 bg-amber-500/10 rounded-lg border border-amber-500/30 mb-6">
+                        <div className="flex items-center gap-2 text-amber-400 text-sm">
+                            <Crown className="w-5 h-5" />
+                            <span>Clearance Level: <span className="font-bold">TOP SECRET</span> Required</span>
+                        </div>
+                    </div>
+
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => router.push('/signin')}
+                        className="w-full py-3 rounded-xl font-medium bg-[var(--platinum)] text-[var(--void-black)]"
+                    >
+                        Sign in with Higher Authority Credentials
+                    </motion.button>
+
+                    <button
+                        onClick={() => router.push('/dashboard')}
+                        className="mt-4 text-sm text-[var(--silver-dark)] hover:text-[var(--platinum)] transition-colors"
+                    >
+                        Return to Dashboard
+                    </button>
+                </motion.div>
+            </div>
+        );
+    }
+
+    const handleToggleAccess = (entityId: string, granted: boolean) => {
+        if (!selectedEvidence.consensusReached) return;
+
+        setEntities(prev => prev.map(entity =>
+            entity.id === entityId
+                ? {
+                    ...entity,
+                    hasAccess: granted,
+                    grantedAt: granted ? new Date().toISOString() : undefined,
+                }
+                : entity
+        ));
+    };
+
+    const handleGenerateKey = () => {
+        if (!selectedEvidence.consensusReached) return;
+
+        // Generate a mock access key
+        const key = `TARS-KEY-${Array.from({ length: 32 }, () =>
+            'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]
+        ).join('')}`;
+        setGeneratedKey(key);
+        setShowGenerator(false);
+    };
+
+    const entitiesWithAccess = entities.filter(e => e.hasAccess);
+    const entitiesWithoutAccess = entities.filter(e => !e.hasAccess);
+    const verifiedEvidence = mockEvidence.filter(e => e.consensusReached);
+    const pendingEvidence = mockEvidence.filter(e => !e.consensusReached);
+
+    return (
+        <div className="min-h-screen p-8">
+            <div className="max-w-5xl mx-auto">
+                {/* Header */}
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6"
+                >
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="w-12 h-12 rounded-xl bg-[var(--platinum)]/10 flex items-center justify-center">
+                            <Key className="w-6 h-6 text-[var(--platinum)]" />
+                        </div>
+                        <div>
+                            <h1
+                                className="text-4xl font-bold text-metallic-glow"
+                                style={{ fontFamily: 'var(--font-display)' }}
+                            >
+                                The Key Master
+                            </h1>
+                            <p className="text-[var(--silver-medium)]">
+                                Selective Disclosure Control
+                            </p>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Authority Access Warning */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 }}
+                    className="mb-8 p-4 rounded-xl border-2 border-amber-500/30 bg-amber-500/5"
+                >
+                    <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                            <Crown className="w-6 h-6 text-amber-400" />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-lg font-bold text-amber-400 flex items-center gap-2">
+                                <ShieldAlert className="w-5 h-5" />
+                                Higher Authority Access Only
+                            </h3>
+                            <p className="text-sm text-amber-200/80 mt-1">
+                                This dashboard is restricted to <span className="font-bold text-amber-300">Agency Administrators</span> and
+                                <span className="font-bold text-amber-300"> Senior Officers</span> only.
+                                All actions are logged and audited.
+                            </p>
+                            <div className="flex items-center gap-4 mt-3 text-xs text-amber-300/70">
+                                <span className="flex items-center gap-1">
+                                    <Shield className="w-3 h-3" />
+                                    Clearance Level: <span className="font-bold text-amber-300">TOP SECRET</span>
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <Lock className="w-3 h-3" />
+                                    Session ID: AX-{Math.random().toString(36).substring(2, 8).toUpperCase()}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Consensus Requirement Notice */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="mb-8 p-4 rounded-xl bg-[var(--space-medium)] border border-[var(--silver-dark)]/30"
+                >
+                    <div className="flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-[var(--status-verified)]" />
+                        <p className="text-sm text-[var(--silver-medium)]">
+                            <span className="font-medium text-[var(--platinum)]">Consensus Required:</span> Only evidence that has received
+                            <span className="text-[var(--status-verified)] font-bold"> 3/3 validator signatures </span>
+                            can be publicly disclosed. Evidence pending validation cannot be released.
+                        </p>
+                    </div>
+                </motion.div>
+
+                {/* Evidence Selector */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="mb-8"
+                >
+                    <label className="block text-sm font-medium text-[var(--silver-dark)] mb-3">
+                        Select Evidence for Disclosure
+                    </label>
+
+                    {/* Verified Evidence (Eligible) */}
+                    <div className="mb-4">
+                        <p className="text-xs text-[var(--status-verified)] mb-2 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Eligible for Disclosure ({verifiedEvidence.length})
+                        </p>
+                        <div className="flex gap-3">
+                            {verifiedEvidence.map((evidence) => (
+                                <motion.button
+                                    key={evidence.id}
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={() => setSelectedEvidence(evidence)}
+                                    className={`
+                                        flex-1 p-4 rounded-xl text-left transition-all relative
+                                        ${selectedEvidence.id === evidence.id
+                                            ? 'glass border-[var(--status-verified)]/50 bg-[var(--status-verified)]/5'
+                                            : 'glass hover:border-[var(--platinum)]/30'
+                                        }
+                                    `}
+                                >
+                                    <div className="absolute top-2 right-2">
+                                        <CheckCircle2 className="w-4 h-4 text-[var(--status-verified)]" />
+                                    </div>
+                                    <div
+                                        className="text-sm text-[var(--accent-cyan)] mb-1"
+                                        style={{ fontFamily: 'var(--font-mono)' }}
+                                    >
+                                        {evidence.id}
+                                    </div>
+                                    <div className="font-medium text-[var(--platinum)] truncate pr-6">
+                                        {evidence.fileName}
+                                    </div>
+                                    <div className="text-xs text-[var(--status-verified)] mt-1">
+                                        {evidence.signatures}/{evidence.requiredSignatures} signatures ✓
+                                    </div>
+                                </motion.button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Pending Evidence (Not Eligible) */}
+                    {pendingEvidence.length > 0 && (
+                        <div>
+                            <p className="text-xs text-[var(--silver-dark)] mb-2 flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                Pending Consensus ({pendingEvidence.length})
+                            </p>
+                            <div className="flex gap-3">
+                                {pendingEvidence.map((evidence) => (
+                                    <div
+                                        key={evidence.id}
+                                        className="flex-1 p-4 rounded-xl text-left opacity-50 cursor-not-allowed
+                                                   bg-[var(--space-medium)] border border-[var(--silver-dark)]/20"
+                                    >
+                                        <div className="flex items-center justify-between mb-1">
+                                            <div
+                                                className="text-sm text-[var(--silver-dark)]"
+                                                style={{ fontFamily: 'var(--font-mono)' }}
+                                            >
+                                                {evidence.id}
+                                            </div>
+                                            <Lock className="w-4 h-4 text-[var(--silver-dark)]" />
+                                        </div>
+                                        <div className="font-medium text-[var(--silver-dark)] truncate">
+                                            {evidence.fileName}
+                                        </div>
+                                        <div className="text-xs text-[var(--status-orbiting)] mt-1">
+                                            {evidence.signatures}/{evidence.requiredSignatures} signatures - PENDING
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </motion.div>
+
+                {/* Main Content */}
+                <div className="grid lg:grid-cols-3 gap-8">
+                    {/* Access Key Management */}
+                    <div className="lg:col-span-1">
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="glass p-6"
+                        >
+                            <h2
+                                className="text-lg font-semibold mb-4 flex items-center gap-2"
+                                style={{ fontFamily: 'var(--font-display)' }}
+                            >
+                                <Lock className="w-5 h-5 text-[var(--platinum)]" />
+                                Access Keys
+                            </h2>
+
+                            {/* Generate Key Button */}
+                            <motion.button
+                                whileHover={selectedEvidence.consensusReached ? { scale: 1.02 } : {}}
+                                whileTap={selectedEvidence.consensusReached ? { scale: 0.98 } : {}}
+                                onClick={() => selectedEvidence.consensusReached && setShowGenerator(true)}
+                                disabled={!selectedEvidence.consensusReached}
+                                className={`w-full flex items-center justify-center gap-2 mb-4 py-3 rounded-xl font-medium transition-all
+                                    ${selectedEvidence.consensusReached
+                                        ? 'bg-[var(--platinum)] text-[var(--void-black)] hover:bg-white'
+                                        : 'bg-[var(--silver-dark)]/20 text-[var(--silver-dark)] cursor-not-allowed'
+                                    }`}
+                            >
+                                <Plus className="w-4 h-4" />
+                                Generate New Key
+                            </motion.button>
+
+                            {!selectedEvidence.consensusReached && (
+                                <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                                    <div className="flex items-center gap-2 text-xs text-amber-400">
+                                        <AlertTriangle className="w-4 h-4" />
+                                        <span>Consensus not reached. Key generation disabled.</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Recent Key */}
+                            {generatedKey && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-4 bg-[var(--status-verified)]/10 border border-[var(--status-verified)]/30 rounded-lg"
+                                >
+                                    <div className="flex items-center gap-2 text-sm text-[var(--status-verified)] mb-2">
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        Key Generated
+                                    </div>
+                                    <code
+                                        className="block text-xs break-all text-[var(--platinum)]"
+                                        style={{ fontFamily: 'var(--font-mono)' }}
+                                    >
+                                        {generatedKey}
+                                    </code>
+                                    <button
+                                        onClick={async () => {
+                                            await navigator.clipboard.writeText(generatedKey);
+                                        }}
+                                        className="mt-2 text-xs text-[var(--accent-cyan)] hover:underline flex items-center gap-1"
+                                    >
+                                        <Copy className="w-3 h-3" />
+                                        Copy to clipboard
+                                    </button>
+                                </motion.div>
+                            )}
+
+                            {/* Stats */}
+                            <div className="mt-6 space-y-3">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-[var(--silver-dark)]">Active Keys</span>
+                                    <span className="text-[var(--platinum)]">{entitiesWithAccess.length}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-[var(--silver-dark)]">Pending Entities</span>
+                                    <span className="text-[var(--platinum)]">{entitiesWithoutAccess.length}</span>
+                                </div>
+                            </div>
+                        </motion.div>
+
+                        {/* Security Notice */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            className="mt-4 p-4 glass flex items-start gap-3"
+                        >
+                            <AlertCircle className="w-5 h-5 text-[var(--status-orbiting)] flex-shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-sm font-medium text-[var(--status-orbiting)]">
+                                    Irreversible Action
+                                </p>
+                                <p className="text-xs text-[var(--silver-dark)] mt-1">
+                                    Once access is granted, decryption keys cannot be revoked.
+                                    All disclosures are permanently recorded on-chain.
+                                </p>
+                            </div>
+                        </motion.div>
+                    </div>
+
+                    {/* Entity List */}
+                    <div className="lg:col-span-2">
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="glass p-6"
+                        >
+                            <h2
+                                className="text-lg font-semibold mb-6 flex items-center gap-2"
+                                style={{ fontFamily: 'var(--font-display)' }}
+                            >
+                                <Users className="w-5 h-5 text-[var(--platinum)]" />
+                                Authorized Entities
+                            </h2>
+
+                            {/* Entities with Access */}
+                            {entitiesWithAccess.length > 0 && (
+                                <div className="mb-6">
+                                    <h3 className="text-sm text-[var(--status-verified)] mb-3 flex items-center gap-2">
+                                        <Unlock className="w-4 h-4" />
+                                        Has Access ({entitiesWithAccess.length})
+                                    </h3>
+                                    <div className="space-y-2">
+                                        {entitiesWithAccess.map((entity, index) => (
+                                            <EntityToggle
+                                                key={entity.id}
+                                                entity={entity}
+                                                index={index}
+                                                onToggle={(granted) => handleToggleAccess(entity.id, granted)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Entities without Access */}
+                            {entitiesWithoutAccess.length > 0 && (
+                                <div>
+                                    <h3 className="text-sm text-[var(--silver-dark)] mb-3 flex items-center gap-2">
+                                        <Lock className="w-4 h-4" />
+                                        Pending Access ({entitiesWithoutAccess.length})
+                                    </h3>
+                                    <div className="space-y-2">
+                                        {entitiesWithoutAccess.map((entity, index) => (
+                                            <EntityToggle
+                                                key={entity.id}
+                                                entity={entity}
+                                                index={index}
+                                                onToggle={(granted) => handleToggleAccess(entity.id, granted)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Key Generator Modal */}
+            <AnimatePresence>
+                {showGenerator && (
+                    <AccessKeyGenerator
+                        evidenceId={selectedEvidence.id}
+                        onGenerate={handleGenerateKey}
+                        onClose={() => setShowGenerator(false)}
+                    />
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
