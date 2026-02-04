@@ -1,0 +1,109 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EvidenceStatus {
+  SUBMITTED
+  ASSIGNED
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  DISCLOSED
+}
+
+model Evidence {
+  id              String         @id @default(uuid())
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  originalHash    String?        // Hash of original data
+  encryptedHash   String?        // Hash of encrypted data
+  ipfsCid         String?
+  arweaveTx       String?
+  status          EvidenceStatus @default(SUBMITTED)
+  metadata        Json?
+  
+  assignments      ValidatorAssignment[]
+  votes            ValidatorVote[]
+  custodyEvents    CustodyEvent[]
+  encryptedKeys    EncryptedKey[]
+  disclosureTokens DisclosureToken[]
+  auditReports     AuditReport[]
+
+  @@map("evidence")
+}
+
+model ValidatorAssignment {
+  id             String   @id @default(uuid())
+  evidenceId     String
+  evidence       Evidence @relation(fields: [evidenceId], references: [id])
+  walletAddress  String
+  assignedAt     DateTime @default(now())
+
+  @@unique([evidenceId, walletAddress])
+  @@map("validator_assignments")
+}
+
+model ValidatorVote {
+  id             String   @id @default(uuid())
+  evidenceId     String
+  evidence       Evidence @relation(fields: [evidenceId], references: [id])
+  walletAddress  String
+  verdict        String   // e.g., "VALID", "INVALID"
+  signature      String
+  votedAt        DateTime @default(now())
+
+  @@unique([evidenceId, walletAddress])
+  @@map("validator_votes")
+}
+
+model CustodyEvent {
+  id               String   @id @default(uuid())
+  evidenceId       String
+  evidence         Evidence @relation(fields: [evidenceId], references: [id])
+  eventType        String   // SUBMISSION, ASSIGNMENT, VOTE, ARCHIVE, DISCLOSURE
+  actorAddress     String?
+  blockchainTxHash String?
+  timestamp        DateTime @default(now())
+
+  @@map("custody_events")
+}
+
+model EncryptedKey {
+  id               String   @id @default(uuid())
+  evidenceId       String
+  evidence         Evidence @relation(fields: [evidenceId], references: [id])
+  recipientAddress String
+  wrappedKey       String   @db.Text // Base64 wrapped symmetric key
+  createdAt        DateTime @default(now())
+
+  @@unique([evidenceId, recipientAddress])
+  @@map("encrypted_keys")
+}
+
+model DisclosureToken {
+  id             String   @id @default(uuid())
+  evidenceId     String
+  evidence       Evidence @relation(fields: [evidenceId], references: [id])
+  token          String   @unique
+  recipientEmail String?
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  @@map("disclosure_tokens")
+}
+
+model AuditReport {
+  id             String   @id @default(uuid())
+  evidenceId     String
+  evidence       Evidence @relation(fields: [evidenceId], references: [id])
+  pdfUrl         String?
+  ipfsCid        String?
+  createdAt      DateTime @default(now())
+
+  @@map("audit_reports")
+}
