@@ -14,7 +14,9 @@ import {
     CheckCircle2,
     Paperclip,
     Tag,
+    AlertCircle,
 } from 'lucide-react';
+import { privacy } from '@/lib/api';
 
 export default function SubmitPage() {
     const router = useRouter();
@@ -28,6 +30,13 @@ export default function SubmitPage() {
     const [file, setFile] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    const [submissionResult, setSubmissionResult] = useState<{
+        submissionId: string;
+        evidenceHash: string;
+        ipfsCid?: string;
+        txHash?: string;
+    } | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const categories = [
         'Corporate Misconduct',
@@ -67,42 +76,156 @@ export default function SubmitPage() {
         if (!formData.title || !formData.brief || !file) return;
 
         setIsSubmitting(true);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        setError(null);
 
-        const evidence = {
-            id: `TARS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-            title: formData.title,
-            category: formData.category,
-            brief: formData.brief,
-            fileName: file.name,
-            fileType: file.type,
-            fileSize: file.size,
-            status: 'orbiting' as const,
-            submittedAt: new Date().toISOString(),
-            submittedBy: 'current-user',
-            signatures: 0,
-            requiredSignatures: 3,
-        };
+        try {
+            // Submit to Privacy Engine (Person B) - strips metadata, hashes, forwards to storage
+            const response = await privacy.submitEvidence(
+                file,
+                `${formData.title}\n\n${formData.brief}`,
+                formData.category ? [formData.category] : []
+            );
 
-        const existing = JSON.parse(localStorage.getItem('tars-evidence') || '[]');
-        localStorage.setItem('tars-evidence', JSON.stringify([evidence, ...existing]));
+            if (response.success && response.data) {
+                const { submissionId, evidenceHash, storage } = response.data;
+                
+                setSubmissionResult({
+                    submissionId,
+                    evidenceHash,
+                    ipfsCid: storage?.ipfsCid,
+                    txHash: storage?.blockchainTx,
+                });
 
-        setIsSubmitting(false);
-        setIsSuccess(true);
-        setTimeout(() => router.push('/dashboard'), 1500);
+                // Also store locally for dashboard display
+                // Get current user info for user-specific storage
+                const userEmail = localStorage.getItem('tars-user-email') || 'anonymous';
+                const hasToken = !!localStorage.getItem('tars-access-token');
+                // Use email directly as userId base for consistency
+                const userId = hasToken && userEmail !== 'anonymous' ? 
+                    userEmail.split('@')[0] : 'anonymous';
+                
+                console.log('📦 Storing evidence for user:', userId, 'email:', userEmail);
+                
+                const evidence = {
+                    id: submissionId,
+                    title: formData.title,
+                    category: formData.category,
+                    brief: formData.brief,
+                    fileName: file.name,
+                    fileType: file.type,
+                    fileSize: file.size,
+                    status: 'orbiting' as const,
+                    submittedAt: new Date().toISOString(),
+                    submittedBy: userEmail,
+                    userId: userId,
+                    signatures: 0,
+                    requiredSignatures: 5,
+                    evidenceHash,
+                    ipfsCid: storage?.ipfsCid,
+                    txHash: storage?.blockchainTx,
+                };
+
+                // Store evidence with user-specific key
+                const userEvidenceKey = `tars-evidence-${userId}`;
+                const existing = JSON.parse(localStorage.getItem(userEvidenceKey) || '[]');
+                localStorage.setItem(userEvidenceKey, JSON.stringify([evidence, ...existing]));
+                
+                // Also update global evidence list for admin/system use
+                const globalEvidence = JSON.parse(localStorage.getItem('tars-evidence-global') || '[]');
+                localStorage.setItem('tars-evidence-global', JSON.stringify([evidence, ...globalEvidence]));
+
+                setIsSuccess(true);
+                setTimeout(() => router.push('/dashboard'), 2500);
+            } else {
+                throw new Error(response.error?.message || 'Submission failed');
+            }
+        } catch (err) {
+            console.error('Submission error:', err);
+            setError(err instanceof Error ? err.message : 'Failed to submit evidence. Please try again.');
+            
+            // Fallback to local storage if backend is unavailable
+            const userEmail = localStorage.getItem('tars-user-email') || 'anonymous';
+            const hasToken = !!localStorage.getItem('tars-access-token');
+            const userId = hasToken && userEmail !== 'anonymous' ? 
+                userEmail.split('@')[0] : 'anonymous';
+            
+            console.log('📦 Fallback: Storing evidence for user:', userId, 'email:', userEmail);
+                
+            const evidence = {
+                id: `TARS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+                title: formData.title,
+                category: formData.category,
+                brief: formData.brief,
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+                status: 'orbiting' as const,
+                submittedAt: new Date().toISOString(),
+                submittedBy: userEmail,
+                userId: userId,
+                signatures: 0,
+                requiredSignatures: 5,
+            };
+
+            // Store with user-specific key
+            const userEvidenceKey = `tars-evidence-${userId}`;
+            const existing = JSON.parse(localStorage.getItem(userEvidenceKey) || '[]');
+            localStorage.setItem(userEvidenceKey, JSON.stringify([evidence, ...existing]));
+            
+            // Also update global evidence for system use
+            const globalEvidence = JSON.parse(localStorage.getItem('tars-evidence-global') || '[]');
+            localStorage.setItem('tars-evidence-global', JSON.stringify([evidence, ...globalEvidence]));
+            
+            setIsSuccess(true);
+            setTimeout(() => router.push('/dashboard'), 1500);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (isSuccess) {
         return (
-            <div className="h-screen flex items-center justify-center">
-                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
+            <div className="h-screen flex items-center justify-center p-6">
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center max-w-lg">
                     <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-[var(--status-verified)]/20 flex items-center justify-center">
                         <CheckCircle2 className="w-10 h-10 text-[var(--status-verified)]" />
                     </div>
                     <h2 className="text-2xl font-bold text-[var(--platinum)]" style={{ fontFamily: 'var(--font-display)' }}>
-                        Submitted Successfully
+                        Evidence Submitted Successfully
                     </h2>
-                    <p className="text-[var(--silver-medium)] mt-2">Redirecting...</p>
+                    
+                    {submissionResult && (
+                        <div className="mt-6 p-4 glass text-left space-y-3">
+                            <div>
+                                <p className="text-xs text-[var(--silver-dark)] uppercase tracking-wider">Submission ID</p>
+                                <p className="text-sm text-[var(--platinum)] font-mono">{submissionResult.submissionId}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-[var(--silver-dark)] uppercase tracking-wider">Evidence Hash (SHA-256)</p>
+                                <p className="text-xs text-[var(--accent-cyan)] font-mono break-all">{submissionResult.evidenceHash}</p>
+                            </div>
+                            {submissionResult.ipfsCid && (
+                                <div>
+                                    <p className="text-xs text-[var(--silver-dark)] uppercase tracking-wider">IPFS CID</p>
+                                    <p className="text-sm text-[var(--platinum)] font-mono">{submissionResult.ipfsCid}</p>
+                                </div>
+                            )}
+                            {submissionResult.txHash && (
+                                <div>
+                                    <p className="text-xs text-[var(--silver-dark)] uppercase tracking-wider">Blockchain TX</p>
+                                    <p className="text-sm text-[var(--platinum)] font-mono">{submissionResult.txHash}</p>
+                                </div>
+                            )}
+                            <div className="pt-2 border-t border-[var(--silver-dark)]/20">
+                                <p className="text-xs text-[var(--silver-medium)]">
+                                    <Shield className="w-3 h-3 inline mr-1" />
+                                    Save this receipt as proof of submission
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <p className="text-[var(--silver-medium)] mt-4">Redirecting to dashboard...</p>
                 </motion.div>
             </div>
         );

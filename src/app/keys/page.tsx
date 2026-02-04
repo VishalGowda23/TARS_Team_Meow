@@ -20,54 +20,21 @@ import {
 } from 'lucide-react';
 import AccessKeyGenerator from '@/components/keys/AccessKeyGenerator';
 import EntityToggle from '@/components/keys/EntityToggle';
+import { backend } from '@/lib/api';
 
-// Mock evidence for key management - only verified evidence with consensus
-const mockEvidence = [
-    {
-        id: 'TARS-9P4L3N',
-        fileName: 'internal_memo_leak.docx',
-        status: 'verified' as const,
-        signatures: 3,
-        requiredSignatures: 3,
-        consensusReached: true,
-    },
-    {
-        id: 'TARS-2H5J8Q',
-        fileName: 'safety_violation_photos.zip',
-        status: 'verified' as const,
-        signatures: 3,
-        requiredSignatures: 3,
-        consensusReached: true,
-    },
-    {
-        id: 'TARS-7X92K1',
-        fileName: 'pending_evidence.pdf',
-        status: 'orbiting' as const,
-        signatures: 1,
-        requiredSignatures: 3,
-        consensusReached: false,
-    },
-];
 
-// Mock authorized entities
-const mockEntities = [
-    { id: '1', name: 'The Press', type: 'Media', hasAccess: true, grantedAt: '2024-01-14T12:00:00Z' },
-    { id: '2', name: 'Legal Council', type: 'Legal', hasAccess: true, grantedAt: '2024-01-15T09:30:00Z' },
-    { id: '3', name: 'Regulatory Authority', type: 'Government', hasAccess: false },
-    { id: '4', name: 'Internal Audit', type: 'Corporate', hasAccess: false },
-    { id: '5', name: 'Independent Investigator', type: 'Legal', hasAccess: false },
-];
 
 export default function KeysPage() {
     const router = useRouter();
     const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
     const [userEmail, setUserEmail] = useState('');
-    const [selectedEvidence, setSelectedEvidence] = useState(mockEvidence[0]);
-    const [entities, setEntities] = useState(mockEntities);
+    const [selectedEvidence, setSelectedEvidence] = useState<any>(null);
+    const [entities, setEntities] = useState<any[]>([]);
+    const [verifiedEvidence, setVerifiedEvidence] = useState<any[]>([]);
     const [showGenerator, setShowGenerator] = useState(false);
     const [generatedKey, setGeneratedKey] = useState<string | null>(null);
 
-    // Check for higher authority access
+    // Check for higher authority access and load evidence
     useEffect(() => {
         const userRole = localStorage.getItem('tars-user-role');
         const email = localStorage.getItem('tars-user-email');
@@ -75,6 +42,26 @@ export default function KeysPage() {
         if (userRole === 'higher-authority') {
             setIsAuthorized(true);
             setUserEmail(email || 'admin@tars.network');
+            
+            // Load verified evidence from localStorage
+            const stored = localStorage.getItem('tars-evidence');
+            if (stored) {
+                const evidence = JSON.parse(stored);
+                const verified = evidence.filter((e: any) => e.status === 'verified' && e.signatures >= 3);
+                setVerifiedEvidence(verified);
+                if (verified.length > 0) {
+                    setSelectedEvidence(verified[0]);
+                }
+            }
+            
+            // Initialize default entities
+            setEntities([
+                { id: '1', name: 'The Press', type: 'Media', hasAccess: false },
+                { id: '2', name: 'Legal Council', type: 'Legal', hasAccess: false },
+                { id: '3', name: 'Regulatory Authority', type: 'Government', hasAccess: false },
+                { id: '4', name: 'Internal Audit', type: 'Corporate', hasAccess: false },
+                { id: '5', name: 'Independent Investigator', type: 'Legal', hasAccess: false },
+            ]);
         } else {
             setIsAuthorized(false);
         }
@@ -146,8 +133,22 @@ export default function KeysPage() {
         );
     }
 
-    const handleToggleAccess = (entityId: string, granted: boolean) => {
-        if (!selectedEvidence.consensusReached) return;
+    const handleToggleAccess = async (entityId: string, granted: boolean) => {
+        if (!selectedEvidence || selectedEvidence.status !== 'verified') return;
+
+        // Try to create disclosure token via backend API
+        const authToken = localStorage.getItem('tars-auth-token');
+        if (authToken && granted) {
+            try {
+                await backend.createDisclosureToken({
+                    evidenceId: selectedEvidence.id,
+                    recipientEmail: entities.find(e => e.id === entityId)?.name,
+                    expiresIn: 86400 * 7, // 7 days
+                }, authToken);
+            } catch (error) {
+                console.warn('Could not create disclosure token:', error);
+            }
+        }
 
         setEntities(prev => prev.map(entity =>
             entity.id === entityId
@@ -160,10 +161,29 @@ export default function KeysPage() {
         ));
     };
 
-    const handleGenerateKey = () => {
-        if (!selectedEvidence.consensusReached) return;
+    const handleGenerateKey = async () => {
+        if (!selectedEvidence || selectedEvidence.status !== 'verified') return;
 
-        // Generate a mock access key
+        // Try to generate key via backend API
+        const authToken = localStorage.getItem('tars-auth-token');
+        if (authToken) {
+            try {
+                const response = await backend.createDisclosureToken({
+                    evidenceId: selectedEvidence.id,
+                    expiresIn: 86400, // 24 hours
+                }, authToken);
+                
+                if (response.success && response.data) {
+                    setGeneratedKey(response.data.token);
+                    setShowGenerator(false);
+                    return;
+                }
+            } catch (error) {
+                console.warn('Could not generate key via API:', error);
+            }
+        }
+
+        // Fallback to local key generation
         const key = `TARS-KEY-${Array.from({ length: 32 }, () =>
             'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]
         ).join('')}`;
@@ -173,8 +193,7 @@ export default function KeysPage() {
 
     const entitiesWithAccess = entities.filter(e => e.hasAccess);
     const entitiesWithoutAccess = entities.filter(e => !e.hasAccess);
-    const verifiedEvidence = mockEvidence.filter(e => e.consensusReached);
-    const pendingEvidence = mockEvidence.filter(e => !e.consensusReached);
+    const pendingEvidence = verifiedEvidence.filter(e => !e.consensusReached);
 
     return (
         <div className="min-h-screen p-8">

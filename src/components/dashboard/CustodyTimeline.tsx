@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import {
     Upload,
     ShieldCheck,
@@ -10,6 +11,7 @@ import {
     Clock,
     Lock,
 } from 'lucide-react';
+import { blockchain } from '@/lib/api';
 
 interface Evidence {
     id: string;
@@ -21,6 +23,14 @@ interface Evidence {
     txHash: string;
     validatorSignatures?: number;
     disclosedTo?: string[];
+    evidenceHash?: string;
+}
+
+interface CustodyEvent {
+    action: string;
+    actor: string;
+    timestamp: string;
+    transactionHash?: string;
 }
 
 interface CustodyTimelineProps {
@@ -28,6 +38,24 @@ interface CustodyTimelineProps {
 }
 
 export default function CustodyTimeline({ evidence }: CustodyTimelineProps) {
+    const [custodyEvents, setCustodyEvents] = useState<CustodyEvent[]>([]);
+
+    // Fetch custody timeline from blockchain
+    useEffect(() => {
+        const fetchCustody = async () => {
+            try {
+                const response = await blockchain.getCustodyTimeline(evidence.id);
+                if (response.success && response.data) {
+                    setCustodyEvents(response.data.events);
+                }
+            } catch (error) {
+                console.warn('Could not fetch custody timeline:', error);
+            }
+        };
+        
+        fetchCustody();
+    }, [evidence.id]);
+
     const steps = [
         {
             id: 'submitted',

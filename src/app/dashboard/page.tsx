@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, User, Users, Plus } from 'lucide-react';
+import { Search, Filter, User, Users, Plus, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import EvidenceCard from '@/components/dashboard/EvidenceCard';
 import CustodyTimeline from '@/components/dashboard/CustodyTimeline';
+import { blockchain } from '@/lib/api';
 
 interface Evidence {
     id: string;
@@ -18,67 +19,12 @@ interface Evidence {
     validatorSignatures?: number;
     disclosedTo?: string[];
     submittedBy?: string;
+    userId?: string;
     title?: string;
     brief?: string;
 }
 
-// Mock evidence data (existing in the system)
-const mockEvidence: Evidence[] = [
-    {
-        id: 'TARS-7X92K1',
-        title: 'Q4 Internal Financial Discrepancies',
-        brief: 'Internal memo revealing undisclosed financial discrepancies in Q4 reports. Shows deliberate misrepresentation of quarterly earnings to stakeholders.',
-        fileName: 'internal_memo_q4.pdf',
-        status: 'verified',
-        submittedAt: '2024-01-15T10:30:00Z',
-        tags: ['Corporate', 'Financial', 'Urgent'],
-        ipfsCid: 'QmX7b2...8k9Zp',
-        txHash: '0x8f3a...b72c',
-        validatorSignatures: 3,
-        disclosedTo: ['The Press', 'Legal Council'],
-        submittedBy: 'anon-1',
-    },
-    {
-        id: 'TARS-3M41P8',
-        title: 'Executive Meeting Recording - Dec 12',
-        brief: 'Audio recording of executive meeting discussing suppression of safety report findings. Contains admissions of knowingly ignoring regulatory requirements.',
-        fileName: 'audio_recording_dec12.mp3',
-        status: 'orbiting',
-        submittedAt: '2024-01-14T16:45:00Z',
-        tags: ['Audio', 'Meeting', 'Executive'],
-        ipfsCid: 'QmY8c3...9l0Aq',
-        txHash: '0x9g4b...c83d',
-        validatorSignatures: 1,
-        submittedBy: 'anon-2',
-    },
-    {
-        id: 'TARS-9K28L5',
-        title: 'Email Chain: Cover-up Communications',
-        brief: 'Complete email chain showing coordinated effort to destroy evidence and mislead investigators. Includes communications from senior leadership.',
-        fileName: 'email_chain_export.eml',
-        status: 'transmitted',
-        submittedAt: '2024-01-10T09:15:00Z',
-        tags: ['Email', 'Evidence', 'Chain'],
-        ipfsCid: 'QmZ9d4...0m1Br',
-        txHash: '0x0h5c...d94e',
-        validatorSignatures: 3,
-        disclosedTo: ['Regulatory Body'],
-        submittedBy: 'anon-3',
-    },
-    {
-        id: 'TARS-2L59N4',
-        title: '2023 Annual Report Manipulation',
-        brief: 'Financial report showing evidence of systematic manipulation of annual figures. Cross-references with internal documents reveal significant discrepancies.',
-        fileName: 'financial_report_2023.xlsx',
-        status: 'verified',
-        submittedAt: '2024-01-08T14:20:00Z',
-        tags: ['Financial', 'Annual', 'Report'],
-        ipfsCid: 'QmA0e5...1n2Cs',
-        txHash: '0x1i6d...e05f',
-        validatorSignatures: 3,
-        submittedBy: 'anon-1',
-    },
-];
+
 
 const filterOptions = [
     { id: 'all', label: 'All Status' },
@@ -88,57 +34,157 @@ const filterOptions = [
 ];
 
 export default function DashboardPage() {
-    const [allEvidence, setAllEvidence] = useState<Evidence[]>(mockEvidence);
+    const [allEvidence, setAllEvidence] = useState<Evidence[]>([]);
     const [selectedEvidence, setSelectedEvidence] = useState<Evidence | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [viewMode, setViewMode] = useState<'all' | 'mine'>('all');
+    const [viewMode, setViewMode] = useState<'all' | 'mine'>('mine');
+    const [isLoading, setIsLoading] = useState(false);
 
-    // Load user's submitted evidence from localStorage
-    useEffect(() => {
-        const stored = localStorage.getItem('tars-evidence');
-        if (stored) {
-            const userEvidence = JSON.parse(stored).map((e: Evidence & { category?: string; fileSize?: number; fileType?: string }) => ({
-                ...e,
-                tags: e.tags || [e.category || 'Uncategorized'],
-                ipfsCid: e.ipfsCid || `Qm${e.id.slice(-8)}...${Math.random().toString(36).slice(2, 6)}`,
-                txHash: e.txHash || `0x${Math.random().toString(16).slice(2, 6)}...${Math.random().toString(16).slice(2, 6)}`,
-            }));
-            setAllEvidence([...userEvidence, ...mockEvidence]);
-            if (userEvidence.length > 0 && !selectedEvidence) {
-                setSelectedEvidence(userEvidence[0]);
+    // Fetch evidence status from blockchain and merge with local data
+    const fetchEvidenceStatus = async (evidenceId: string) => {
+        try {
+            const response = await blockchain.getEvidenceStatus(evidenceId);
+            if (response.success && response.data) {
+                return response.data;
             }
-        } else if (!selectedEvidence && mockEvidence.length > 0) {
-            setSelectedEvidence(mockEvidence[0]);
+        } catch (error) {
+            console.warn(`Could not fetch status for ${evidenceId}:`, error);
         }
-    }, []);
+        return null;
+    };
+
+    // Load user's submitted evidence from localStorage and sync with backend
+    useEffect(() => {
+        const loadEvidence = async () => {
+            setIsLoading(true);
+            
+            // Get current user info to load user-specific evidence
+            const userEmail = localStorage.getItem('tars-user-email') || 'anonymous';
+            const hasToken = !!localStorage.getItem('tars-access-token');
+            // Use email directly as userId base for consistency (matches submit page)
+            const userId = hasToken && userEmail !== 'anonymous' ? 
+                userEmail.split('@')[0] : 'anonymous';
+            
+            console.log('📊 Loading evidence for user:', userId, 'email:', userEmail);
+            
+            // Load user-specific evidence or global for admins
+            const userRole = localStorage.getItem('tars-user-role');
+            const isAdmin = userRole === 'higher-authority' || userRole === 'admin';
+            
+            const storageKey = viewMode === 'all' && isAdmin ? 
+                'tars-evidence-global' : 
+                `tars-evidence-${userId}`;
+                
+            const stored = localStorage.getItem(storageKey);
+            
+            if (stored) {
+                const userEvidence = JSON.parse(stored).map((e: Evidence & { category?: string; fileSize?: number; fileType?: string; evidenceHash?: string }) => ({
+                    ...e,
+                    tags: e.tags || [e.category || 'Uncategorized'],
+                    ipfsCid: e.ipfsCid || `Qm${e.id.slice(-8)}...${Math.random().toString(36).slice(2, 6)}`,
+                    txHash: e.txHash || `0x${Math.random().toString(16).slice(2, 6)}...${Math.random().toString(16).slice(2, 6)}`,
+                }));
+
+                // Try to fetch updated status from blockchain for each evidence
+                const updatedEvidence = await Promise.all(
+                    userEvidence.map(async (e: Evidence) => {
+                        const blockchainStatus = await fetchEvidenceStatus(e.id);
+                        if (blockchainStatus) {
+                            const statusMap: Record<string, 'orbiting' | 'verified' | 'transmitted'> = {
+                                'PENDING': 'orbiting',
+                                'VERIFIED': 'verified',
+                                'REJECTED': 'orbiting',
+                            };
+                            return {
+                                ...e,
+                                status: statusMap[blockchainStatus.status] || e.status,
+                                validatorSignatures: blockchainStatus.votes?.approvals || e.validatorSignatures,
+                                txHash: blockchainStatus.transactionHash || e.txHash,
+                            };
+                        }
+                        return e;
+                    })
+                );
+
+                setAllEvidence(updatedEvidence);
+                if (updatedEvidence.length > 0 && !selectedEvidence) {
+                    setSelectedEvidence(updatedEvidence[0]);
+                }
+            } else {
+                setAllEvidence([]);
+            }
+            setIsLoading(false);
+        };
+
+        loadEvidence();
+    }, [viewMode]); // Re-load when view mode changes
+
+    // Refresh evidence status
+    const handleRefresh = async () => {
+        setIsLoading(true);
+        
+        // Get current user info and determine storage key
+        const userEmail = localStorage.getItem('tars-user-email') || 'anonymous';
+        const hasToken = !!localStorage.getItem('tars-access-token');
+        const userId = hasToken && userEmail !== 'anonymous' ? 
+            userEmail.split('@')[0] : 'anonymous';
+        const userRole = localStorage.getItem('tars-user-role');
+        const isAdmin = userRole === 'higher-authority' || userRole === 'admin';
+        
+        const storageKey = viewMode === 'all' && isAdmin ? 
+            'tars-evidence-global' : 
+            `tars-evidence-${userId}`;
+            
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+            const userEvidence = JSON.parse(stored);
+            const updatedEvidence = await Promise.all(
+                userEvidence.map(async (e: Evidence) => {
+                    const blockchainStatus = await fetchEvidenceStatus(e.id);
+                    if (blockchainStatus) {
+                        const statusMap: Record<string, 'orbiting' | 'verified' | 'transmitted'> = {
+                            'PENDING': 'orbiting',
+                            'VERIFIED': 'verified',
+                            'REJECTED': 'orbiting',
+                        };
+                        return {
+                            ...e,
+                            status: statusMap[blockchainStatus.status] || e.status,
+                            validatorSignatures: blockchainStatus.votes?.approvals || 0,
+                        };
+                    }
+                    return e;
+                })
+            );
+            setAllEvidence(updatedEvidence);
+        } else {
+            setAllEvidence([]);
+        }
+        setIsLoading(false);
+    };
 
     // Filter evidence based on search, status, and view mode
     const filteredEvidence = allEvidence
         .filter(e => {
-            // View mode filter
-            if (viewMode === 'mine') {
-                return e.submittedBy === 'current-user';
-            }
-            return true;
-        })
-        .filter(e => {
             // Search filter
             const query = searchQuery.toLowerCase();
-            return (
-                e.fileName.toLowerCase().includes(query) ||
-                e.id.toLowerCase().includes(query) ||
-                e.tags.some(tag => tag.toLowerCase().includes(query)) ||
-                (e.title && e.title.toLowerCase().includes(query))
-            );
-        })
-        .filter(e => {
-            // Status filter
-            if (statusFilter === 'all') return true;
-            return e.status === statusFilter;
-        });
+            const matchesSearch = !query || 
+                e.title?.toLowerCase().includes(query) ||
+                e.fileName?.toLowerCase().includes(query) ||
+                e.brief?.toLowerCase().includes(query) ||
+                e.id.toLowerCase().includes(query);
 
-    const myEvidenceCount = allEvidence.filter(e => e.submittedBy === 'current-user').length;
+            // Status filter
+            const matchesStatus = statusFilter === 'all' || e.status === statusFilter;
+
+            return matchesSearch && matchesStatus;
+        })
+        .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+
+    // Calculate counts based on current user
+    const userEmail = localStorage.getItem('tars-user-email') || 'anonymous';
+    const myEvidenceCount = allEvidence.filter(e => e.submittedBy === userEmail).length;
 
     return (
         <div className="min-h-screen p-8">
@@ -183,31 +229,42 @@ export default function DashboardPage() {
                 >
                     {/* View Mode Toggle */}
                     <div className="flex bg-[var(--space-medium)] rounded-xl p-1">
-                        <button
-                            onClick={() => setViewMode('all')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${viewMode === 'all'
-                                ? 'bg-[var(--platinum)] text-[var(--void-black)]'
-                                : 'text-[var(--silver-medium)] hover:text-[var(--platinum)]'
-                                }`}
-                        >
-                            <Users className="w-4 h-4" />
-                            All Evidence
-                        </button>
-                        <button
-                            onClick={() => setViewMode('mine')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${viewMode === 'mine'
-                                ? 'bg-[var(--platinum)] text-[var(--void-black)]'
-                                : 'text-[var(--silver-medium)] hover:text-[var(--platinum)]'
-                                }`}
-                        >
-                            <User className="w-4 h-4" />
-                            My Submissions
-                            {myEvidenceCount > 0 && (
-                                <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-[var(--accent-cyan)] text-[var(--void-black)]">
-                                    {myEvidenceCount}
-                                </span>
-                            )}
-                        </button>
+                        {(() => {
+                            const userRole = localStorage.getItem('tars-user-role');
+                            const isAdmin = userRole === 'higher-authority' || userRole === 'admin';
+                            
+                            return (
+                                <>
+                                    {isAdmin && (
+                                        <button
+                                            onClick={() => setViewMode('all')}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${viewMode === 'all'
+                                                ? 'bg-[var(--platinum)] text-[var(--void-black)]'
+                                                : 'text-[var(--silver-medium)] hover:text-[var(--platinum)]'
+                                                }`}
+                                        >
+                                            <Users className="w-4 h-4" />
+                                            All Evidence
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => setViewMode('mine')}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${viewMode === 'mine'
+                                            ? 'bg-[var(--platinum)] text-[var(--void-black)]'
+                                            : 'text-[var(--silver-medium)] hover:text-[var(--platinum)]'
+                                            }`}
+                                    >
+                                        <User className="w-4 h-4" />
+                                        My Submissions
+                                        {myEvidenceCount > 0 && (
+                                            <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-[var(--accent-cyan)] text-[var(--void-black)]">
+                                                {myEvidenceCount}
+                                            </span>
+                                        )}
+                                    </button>
+                                </>
+                            );
+                        })()} 
                     </div>
 
                     <div className="flex items-center gap-4 w-full lg:w-auto">

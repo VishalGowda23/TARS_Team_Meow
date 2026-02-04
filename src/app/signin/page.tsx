@@ -14,14 +14,9 @@ import {
     Fingerprint,
     Key,
     Crown,
+    UserPlus,
 } from 'lucide-react';
-
-// Higher Authority Credentials (for demo purposes)
-// In production, this would be handled by a secure backend
-const HIGHER_AUTHORITY_CREDENTIALS = {
-    email: 'admin@tars.network',
-    password: 'authority123',
-};
+import { AuthAPI } from '@/lib/api/auth';
 
 // Blockchain block component
 function BlockchainBlock({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
@@ -100,33 +95,69 @@ export default function SignInPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [isRegistering, setIsRegistering] = useState(false);
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
 
-        // Simulate authentication delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+            let response;
+            
+            if (isRegistering) {
+                // Register new user
+                response = await AuthAPI.register({
+                    email: email.toLowerCase(),
+                    password,
+                    firstName: firstName || undefined,
+                    lastName: lastName || undefined,
+                });
+            } else {
+                // Login existing user
+                response = await AuthAPI.login({
+                    email: email.toLowerCase(),
+                    password,
+                });
+            }
 
-        // Check for higher authority credentials
-        const isHigherAuthority =
-            email.toLowerCase() === HIGHER_AUTHORITY_CREDENTIALS.email &&
-            password === HIGHER_AUTHORITY_CREDENTIALS.password;
+            // Redirect based on user role
+            const userRole = response.user.role;
+            switch (userRole) {
+                case 'HIGHER_AUTHORITY':
+                case 'ADMIN':
+                    router.push('/keys');
+                    break;
+                case 'VALIDATOR':
+                    router.push('/validate');
+                    break;
+                case 'AGENT':
+                default:
+                    router.push('/submit');
+                    break;
+            }
+        } catch (error: any) {
+            setError(error.message || (isRegistering ? 'Registration failed' : 'Login failed'));
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        // Store user role in localStorage
-        const userRole = isHigherAuthority ? 'higher-authority' : 'agent';
-        localStorage.setItem('tars-user-role', userRole);
-        localStorage.setItem('tars-user-email', email);
-        localStorage.setItem('tars-logged-in', 'true');
-
-        setIsLoading(false);
-
-        // Redirect based on role
-        if (isHigherAuthority) {
-            router.push('/keys');
-        } else {
-            router.push('/submit');
+    const createDemoUsers = async () => {
+        try {
+            setIsLoading(true);
+            await AuthAPI.createDemoUsers();
+            setError('');
+            alert('Demo users created successfully! Try logging in with:\n\n' +
+                  'Agent: agent1@tars.network / agent123\n' +
+                  'Validator: validator1@tars.network / validator123\n' +
+                  'Admin: admin@tars.network / authority123');
+        } catch (error: any) {
+            setError('Failed to create demo users');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -155,11 +186,14 @@ export default function SignInPage() {
                             className="text-2xl font-bold text-metallic-glow mb-2"
                             style={{ fontFamily: 'var(--font-display)' }}
                         >
-                            Secure Access
+                            {isRegistering ? 'Create Account' : 'Secure Access'}
                         </h1>
 
                         <p className="text-sm text-[var(--silver-medium)]">
-                            Initialize encrypted connection to TARS network
+                            {isRegistering 
+                                ? 'Join the TARS network as a registered agent'
+                                : 'Initialize encrypted connection to TARS network'
+                            }
                         </p>
 
                         {/* Hash display */}
@@ -176,11 +210,60 @@ export default function SignInPage() {
                 {/* Chain Link - connecting header to credentials */}
                 <ChainLink delay={0.2} />
 
+                {/* Registration fields for new users */}
+                {isRegistering && (
+                    <>
+                        <div className="flex items-stretch gap-0">
+                            {/* First Name Block */}
+                            <div className="flex-1">
+                                <BlockchainBlock delay={0.25}>
+                                    <div>
+                                        <label className="flex items-center gap-2 text-sm font-medium text-[var(--platinum)] mb-3">
+                                            <Fingerprint className="w-4 h-4" />
+                                            First Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={firstName}
+                                            onChange={(e) => setFirstName(e.target.value)}
+                                            placeholder="Enter first name"
+                                            className="input pl-4 pr-4"
+                                        />
+                                    </div>
+                                </BlockchainBlock>
+                            </div>
+
+                            <ChainLink delay={0.27} horizontal />
+
+                            {/* Last Name Block */}
+                            <div className="flex-1">
+                                <BlockchainBlock delay={0.3}>
+                                    <div>
+                                        <label className="flex items-center gap-2 text-sm font-medium text-[var(--platinum)] mb-3">
+                                            <Fingerprint className="w-4 h-4" />
+                                            Last Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={lastName}
+                                            onChange={(e) => setLastName(e.target.value)}
+                                            placeholder="Enter last name"
+                                            className="input pl-4 pr-4"
+                                        />
+                                    </div>
+                                </BlockchainBlock>
+                            </div>
+                        </div>
+
+                        <ChainLink delay={0.32} />
+                    </>
+                )}
+
                 {/* Email and Password Blocks - Side by Side */}
                 <div className="flex items-stretch gap-0">
                     {/* Email Block */}
                     <div className="flex-1">
-                        <BlockchainBlock delay={0.3}>
+                        <BlockchainBlock delay={isRegistering ? 0.35 : 0.3}>
                             <div>
                                 <label className="flex items-center gap-2 text-sm font-medium text-[var(--platinum)] mb-3">
                                     <Mail className="w-4 h-4" />
@@ -202,11 +285,11 @@ export default function SignInPage() {
                     </div>
 
                     {/* Horizontal Chain Link */}
-                    <ChainLink delay={0.35} horizontal />
+                    <ChainLink delay={isRegistering ? 0.37 : 0.35} horizontal />
 
                     {/* Password Block */}
                     <div className="flex-1">
-                        <BlockchainBlock delay={0.4}>
+                        <BlockchainBlock delay={isRegistering ? 0.4 : 0.4}>
                             <div>
                                 <label className="flex items-center gap-2 text-sm font-medium text-[var(--platinum)] mb-3">
                                     <Key className="w-4 h-4" />
@@ -248,10 +331,10 @@ export default function SignInPage() {
                 </div>
 
                 {/* Chain Link - connecting credentials to submit */}
-                <ChainLink delay={0.5} />
+                <ChainLink delay={isRegistering ? 0.5 : 0.5} />
 
                 {/* Submit Block */}
-                <BlockchainBlock delay={0.6}>
+                <BlockchainBlock delay={isRegistering ? 0.6 : 0.6}>
                     <form onSubmit={handleSubmit}>
                         {error && (
                             <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
@@ -261,10 +344,10 @@ export default function SignInPage() {
 
                         <motion.button
                             type="submit"
-                            disabled={isLoading || !email || !password}
+                            disabled={isLoading || !email || !password || (isRegistering && (!firstName || !lastName))}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className="w-full py-4 rounded-xl font-bold text-lg relative overflow-hidden
+                            className="w-full py-4 rounded-xl font-bold text-lg relative overflow-hidden mb-4
                          disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{
                                 fontFamily: 'var(--font-display)',
@@ -293,17 +376,44 @@ export default function SignInPage() {
                                         >
                                             <Lock className="w-5 h-5" />
                                         </motion.div>
-                                        Establishing Secure Channel...
+                                        {isRegistering ? 'Creating Account...' : 'Establishing Secure Channel...'}
                                     </>
                                 ) : (
                                     <>
-                                        <Lock className="w-5 h-5" />
-                                        Initialize Connection
+                                        {isRegistering ? <UserPlus className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+                                        {isRegistering ? 'Create Account' : 'Initialize Connection'}
                                         <ArrowRight className="w-5 h-5" />
                                     </>
                                 )}
                             </span>
                         </motion.button>
+
+                        {/* Toggle between login and register */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsRegistering(!isRegistering);
+                                setError('');
+                                setFirstName('');
+                                setLastName('');
+                            }}
+                            className="w-full py-2 text-sm text-[var(--silver-medium)] hover:text-[var(--platinum)] transition-colors"
+                        >
+                            {isRegistering 
+                                ? 'Already have an account? Sign in' 
+                                : 'New to TARS? Create an account'
+                            }
+                        </button>
+
+                        {/* Demo users helper */}
+                        <button
+                            type="button"
+                            onClick={createDemoUsers}
+                            disabled={isLoading}
+                            className="w-full mt-2 py-2 text-xs text-[var(--silver-dark)] hover:text-[var(--silver-medium)] transition-colors"
+                        >
+                            Create Demo Users
+                        </button>
 
                         {/* Alternative options */}
                         <div className="mt-6 flex items-center justify-center gap-4 text-sm">
@@ -318,13 +428,13 @@ export default function SignInPage() {
                                 href="#"
                                 className="text-[var(--silver-medium)] hover:text-[var(--platinum)] transition-colors"
                             >
-                                New Agent
+                                Contact Support
                             </Link>
                         </div>
                     </form>
                 </BlockchainBlock>
 
-                {/* Higher Authority Notice */}
+                {/* Predefined Users Notice */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -335,10 +445,10 @@ export default function SignInPage() {
                         <Crown className="w-5 h-5 text-amber-400" />
                         <div>
                             <p className="text-sm text-amber-300 font-medium">
-                                Higher Authority Access
+                                Predefined User Accounts
                             </p>
                             <p className="text-xs text-amber-200/60 mt-1">
-                                Agency administrators use designated credentials for elevated access
+                                Admin: admin@tars.network / authority123 | Agent: agent1@tars.network / agent123
                             </p>
                         </div>
                     </div>

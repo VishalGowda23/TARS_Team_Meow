@@ -23,6 +23,7 @@ import {
     Radio,
 } from 'lucide-react';
 import CryptoHandshake from '@/components/validate/CryptoHandshake';
+import { blockchain } from '@/lib/api';
 
 interface QueueItem {
     id: string;
@@ -30,7 +31,7 @@ interface QueueItem {
     brief?: string;
     fileName: string;
     submittedAt: string;
-    fileSize: string;
+    fileSize: string | number;
     contentHash: string;
     currentSignatures: number;
     requiredSignatures: number;
@@ -38,53 +39,11 @@ interface QueueItem {
     submittedBy?: string;
     category?: string;
     status?: 'orbiting' | 'verified' | 'transmitted';
+    signatures?: number;
+    evidenceHash?: string;
 }
 
-// Mock queue data
-const mockQueue: QueueItem[] = [
-    {
-        id: 'TARS-7X8K2M',
-        title: 'Q4 Financial Irregularities',
-        brief: 'Internal documents showing discrepancies between reported revenue and actual bank deposits. Multiple instances of unexplained transfers to offshore accounts.',
-        fileName: 'financial_records_q4.pdf',
-        submittedAt: '2024-01-16T10:30:00Z',
-        fileSize: '2.4 MB',
-        contentHash: 'sha256:a7f5d8c9e1b4...',
-        currentSignatures: 0,
-        requiredSignatures: 3,
-        priority: 'high',
-        submittedBy: 'anon-1',
-        category: 'Financial Fraud',
-    },
-    {
-        id: 'TARS-6R9W4T',
-        title: 'Customer Data Breach Evidence',
-        brief: 'JSON export from security logs showing unauthorized access to customer database. Includes timestamps, IP addresses, and compromised records count.',
-        fileName: 'data_breach_evidence.json',
-        submittedAt: '2024-01-16T09:15:00Z',
-        fileSize: '156 KB',
-        contentHash: 'sha256:b3e7f2a1d9c6...',
-        currentSignatures: 1,
-        requiredSignatures: 3,
-        priority: 'medium',
-        submittedBy: 'anon-2',
-        category: 'Safety Hazard',
-    },
-    {
-        id: 'TARS-4M2K8P',
-        title: 'Executive Communication Chain',
-        brief: 'Email thread between executives discussing plans to suppress safety violations. Contains admissions of knowledge and deliberate cover-up.',
-        fileName: 'internal_communications.eml',
-        submittedAt: '2024-01-15T16:45:00Z',
-        fileSize: '89 KB',
-        contentHash: 'sha256:c1d9f4e2a8b7...',
-        currentSignatures: 2,
-        requiredSignatures: 3,
-        priority: 'low',
-        submittedBy: 'anon-3',
-        category: 'Corporate Misconduct',
-    },
-];
+
 
 const priorityConfig = {
     high: { color: 'rgb(239, 68, 68)', label: 'HIGH' },
@@ -98,12 +57,14 @@ function EvidenceDetailModal({
     onSign,
     onReject,
     isOwn,
+    hasVoted,
 }: {
     item: QueueItem;
     onClose: () => void;
     onSign: () => void;
     onReject: () => void;
     isOwn: boolean;
+    hasVoted: boolean;
 }) {
     const getFileIcon = (fileName: string) => {
         if (fileName.endsWith('.pdf')) return <FileText className="w-8 h-8" />;
@@ -266,8 +227,8 @@ function EvidenceDetailModal({
                         </div>
                     </div>
 
-                    {/* Validation Actions - only for non-own evidence */}
-                    {!isOwn && (
+                    {/* Validation Actions - only for non-own evidence that hasn't been voted on */}
+                    {!isOwn && !hasVoted && (
                         <div className="pt-4 border-t border-[var(--silver-dark)]/20">
                             <div className="flex items-center gap-2 text-sm text-[var(--silver-dark)] mb-4">
                                 <AlertCircle className="w-4 h-4" />
@@ -299,6 +260,21 @@ function EvidenceDetailModal({
                             </div>
                         </div>
                     )}
+                    
+                    {/* Already voted message */}
+                    {!isOwn && hasVoted && (
+                        <div className="pt-4 border-t border-[var(--silver-dark)]/20">
+                            <div className="flex items-center gap-3 p-4 bg-[var(--status-verified)]/10 rounded-lg border border-[var(--status-verified)]/30">
+                                <CheckCircle2 className="w-5 h-5 text-[var(--status-verified)]" />
+                                <div>
+                                    <p className="font-medium text-[var(--platinum)]">You Have Voted</p>
+                                    <p className="text-sm text-[var(--silver-dark)]">
+                                        Your vote has been recorded for this evidence.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Own evidence - status info */}
                     {isOwn && (
@@ -326,11 +302,13 @@ function QueueItemCard({
     index,
     onClick,
     isOwn,
+    hasVoted,
 }: {
     item: QueueItem;
     index: number;
     onClick: () => void;
     isOwn: boolean;
+    hasVoted: boolean;
 }) {
     const priority = priorityConfig[item.priority];
 
@@ -369,6 +347,16 @@ function QueueItemCard({
                         {isOwn && (
                             <span className="px-2 py-0.5 rounded text-xs bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)]">
                                 Yours
+                            </span>
+                        )}
+                        {hasVoted && !isOwn && (
+                            <span className="px-2 py-0.5 rounded text-xs bg-[var(--status-verified)]/20 text-[var(--status-verified)]">
+                                ✓ Voted
+                            </span>
+                        )}
+                        {item.status === 'verified' && (
+                            <span className="px-2 py-0.5 rounded text-xs bg-green-500/20 text-green-400">
+                                Verified
                             </span>
                         )}
                     </div>
@@ -428,63 +416,230 @@ function QueueItemCard({
 }
 
 export default function ValidatePage() {
-    const [queue, setQueue] = useState<QueueItem[]>(mockQueue);
+    const [queue, setQueue] = useState<QueueItem[]>([]);
     const [viewMode, setViewMode] = useState<'all' | 'mine'>('all');
     const [selectedItem, setSelectedItem] = useState<QueueItem | null>(null);
     const [signingId, setSigningId] = useState<string | null>(null);
     const [showHandshake, setShowHandshake] = useState(false);
+    const [isVoting, setIsVoting] = useState(false);
+    const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
+    const [votedItems, setVotedItems] = useState<Set<string>>(new Set());
+    const [signedTodayCount, setSignedTodayCount] = useState(0);
+    const [totalVerifiedCount, setTotalVerifiedCount] = useState(0);
 
-    // Load user's evidence from localStorage
+    // Determine priority based on evidence attributes
+    const determinePriority = (e: any): 'high' | 'medium' | 'low' => {
+        if (e.category === 'Financial Fraud' || e.category === 'Safety Violation') return 'high';
+        if (e.category === 'Environmental' || e.category === 'Corruption') return 'medium';
+        return 'low';
+    };
+
+    // Load ALL evidence from global storage for validation
     useEffect(() => {
-        const stored = localStorage.getItem('tars-evidence');
-        if (stored) {
-            const userEvidence = JSON.parse(stored).map((e: QueueItem & { fileType?: string }) => ({
+        // Get current user email for ownership detection
+        const userEmail = localStorage.getItem('tars-user-email') || '';
+        setCurrentUserEmail(userEmail);
+        
+        // Load voted items from localStorage
+        const votedKey = `tars-voted-${userEmail}`;
+        const storedVoted = localStorage.getItem(votedKey);
+        if (storedVoted) {
+            setVotedItems(new Set(JSON.parse(storedVoted)));
+        }
+        
+        // Load stats from localStorage
+        const todayKey = `tars-signed-today-${new Date().toDateString()}`;
+        const todayCount = parseInt(localStorage.getItem(todayKey) || '0');
+        setSignedTodayCount(todayCount);
+        
+        const totalCount = parseInt(localStorage.getItem('tars-total-verified') || '0');
+        setTotalVerifiedCount(totalCount);
+        
+        // Load global evidence for validators to review
+        const globalEvidence = localStorage.getItem('tars-evidence-global');
+        
+        if (globalEvidence) {
+            const allEvidence = JSON.parse(globalEvidence).map((e: QueueItem & { fileType?: string; evidenceHash?: string }) => ({
                 ...e,
                 title: e.title || e.fileName,
-                fileSize: e.fileSize || 'Unknown',
-                contentHash: `sha256:${e.id.slice(-8)}${Math.random().toString(16).slice(2, 10)}...`,
-                currentSignatures: e.currentSignatures || 0,
+                fileSize: typeof e.fileSize === 'number' ? formatFileSize(e.fileSize) : (e.fileSize || 'Unknown'),
+                contentHash: e.evidenceHash || `sha256:${e.id.slice(-8)}${Math.random().toString(16).slice(2, 10)}...`,
+                currentSignatures: e.currentSignatures || e.signatures || 0,
                 requiredSignatures: e.requiredSignatures || 3,
-                priority: 'medium' as const,
-                submittedBy: 'current-user',
+                priority: determinePriority(e),
+                // Keep the actual submittedBy from evidence
             }));
-            setQueue([...userEvidence, ...mockQueue]);
+            setQueue(allEvidence);
         }
     }, []);
+    
+    // Helper to format file size
+    const formatFileSize = (bytes: number): string => {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    };
+    
+    // Check if current user has already voted on this item
+    const hasVoted = (itemId: string): boolean => {
+        return votedItems.has(itemId);
+    };
+    
+    // Check if evidence belongs to current user
+    const isOwnEvidence = (item: QueueItem): boolean => {
+        return item.submittedBy === currentUserEmail;
+    };
 
-    const handleSign = (id: string) => {
+    // Submit vote to blockchain
+    const submitVoteToBlockchain = async (evidenceId: string, approve: boolean) => {
+        try {
+            // Get validator address from localStorage
+            const validatorAddress = localStorage.getItem('tars-wallet-address') || 
+                localStorage.getItem('validator-address') || 
+                'validator_' + Date.now();
+            
+            const response = await blockchain.submitVote({
+                evidenceId,
+                validatorAddress,
+                approve,
+                reason: approve ? 'Evidence verified and authentic' : 'Evidence rejected',
+                signature: `sig_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+            });
+            
+            return response;
+        } catch (error) {
+            console.error('Blockchain vote failed:', error);
+            return null;
+        }
+    };
+
+    const handleSign = async (id: string) => {
         setSelectedItem(null);
         setSigningId(id);
         setShowHandshake(true);
     };
 
-    const handleHandshakeComplete = () => {
+    const handleHandshakeComplete = async () => {
         if (signingId) {
-            setQueue(prev => prev.map(item =>
-                item.id === signingId
-                    ? { ...item, currentSignatures: item.currentSignatures + 1 }
-                    : item
-            ));
+            setIsVoting(true);
+            
+            // Submit vote to blockchain
+            const result = await submitVoteToBlockchain(signingId, true);
+            
+            // Get the actual vote count from blockchain response
+            const blockchainVoteCount = result?.data?.votes?.approvals || 0;
+            
+            // Track this vote
+            const newVotedItems = new Set(votedItems);
+            newVotedItems.add(signingId);
+            setVotedItems(newVotedItems);
+            
+            // Save voted items to localStorage
+            const votedKey = `tars-voted-${currentUserEmail}`;
+            localStorage.setItem(votedKey, JSON.stringify([...newVotedItems]));
+            
+            // Update signed today count
+            const todayKey = `tars-signed-today-${new Date().toDateString()}`;
+            const newTodayCount = signedTodayCount + 1;
+            setSignedTodayCount(newTodayCount);
+            localStorage.setItem(todayKey, newTodayCount.toString());
+            
+            // Update local state with blockchain vote count
+            setQueue(prev => prev.map(item => {
+                if (item.id === signingId) {
+                    const newStatus = blockchainVoteCount >= item.requiredSignatures ? 'verified' : item.status;
+                    
+                    // Update total verified if this evidence just got verified
+                    if (newStatus === 'verified' && item.status !== 'verified') {
+                        const newTotal = totalVerifiedCount + 1;
+                        setTotalVerifiedCount(newTotal);
+                        localStorage.setItem('tars-total-verified', newTotal.toString());
+                    }
+                    
+                    return { 
+                        ...item, 
+                        currentSignatures: blockchainVoteCount,
+                        status: newStatus as 'orbiting' | 'verified' | 'transmitted'
+                    };
+                }
+                return item;
+            }));
+
+            // Update localStorage (global evidence) with blockchain vote count
+            const stored = localStorage.getItem('tars-evidence-global');
+            if (stored) {
+                const evidence = JSON.parse(stored);
+                const updated = evidence.map((e: QueueItem) => {
+                    if (e.id === signingId) {
+                        return {
+                            ...e,
+                            currentSignatures: blockchainVoteCount,
+                            signatures: blockchainVoteCount,
+                            status: blockchainVoteCount >= 5 ? 'verified' : 'orbiting',
+                        };
+                    }
+                    return e;
+                });
+                localStorage.setItem('tars-evidence-global', JSON.stringify(updated));
+            }
+
+            setIsVoting(false);
         }
         setShowHandshake(false);
         setSigningId(null);
     };
 
-    const handleReject = (id: string) => {
+    const handleReject = async (id: string) => {
+        console.log('🚫 Rejecting evidence:', id);
         setSelectedItem(null);
-        setQueue(prev => prev.filter(item => item.id !== id));
+        setIsVoting(true);
+        
+        // Submit rejection vote to blockchain
+        const result = await submitVoteToBlockchain(id, false);
+        console.log('Blockchain rejection result:', result);
+        
+        // Track this vote
+        const newVotedItems = new Set(votedItems);
+        newVotedItems.add(id);
+        setVotedItems(newVotedItems);
+        
+        // Save voted items to localStorage
+        const votedKey = `tars-voted-${currentUserEmail}`;
+        localStorage.setItem(votedKey, JSON.stringify([...newVotedItems]));
+        
+        // Update local state - mark as rejected but keep in list
+        setQueue(prev => prev.map(item => 
+            item.id === id ? { ...item, status: 'transmitted' as const } : item
+        ));
+        
+        // Update global localStorage as well
+        const stored = localStorage.getItem('tars-evidence-global');
+        if (stored) {
+            const evidence = JSON.parse(stored);
+            const updated = evidence.map((e: QueueItem) => {
+                if (e.id === id) {
+                    return { ...e, status: 'transmitted' };
+                }
+                return e;
+            });
+            localStorage.setItem('tars-evidence-global', JSON.stringify(updated));
+        }
+        
+        setIsVoting(false);
+        console.log('✅ Rejection complete');
     };
 
     const displayedQueue = viewMode === 'mine'
-        ? queue.filter(item => item.submittedBy === 'current-user')
+        ? queue.filter(item => isOwnEvidence(item))
         : queue;
 
-    const myEvidenceCount = queue.filter(item => item.submittedBy === 'current-user').length;
+    const myEvidenceCount = queue.filter(item => isOwnEvidence(item)).length;
+    const othersEvidenceCount = queue.filter(item => !isOwnEvidence(item)).length;
 
     const stats = {
-        pending: queue.length,
-        signedToday: 12,
-        totalSigned: 147,
+        pending: queue.filter(item => !hasVoted(item.id) && item.status !== 'verified').length,
+        signedToday: signedTodayCount,
+        totalSigned: totalVerifiedCount,
     };
 
     return (
@@ -626,7 +781,8 @@ export default function ValidatePage() {
                                     item={item}
                                     index={index}
                                     onClick={() => setSelectedItem(item)}
-                                    isOwn={item.submittedBy === 'current-user'}
+                                    isOwn={isOwnEvidence(item)}
+                                    hasVoted={hasVoted(item.id)}
                                 />
                             ))
                         )}
@@ -661,7 +817,8 @@ export default function ValidatePage() {
                         onClose={() => setSelectedItem(null)}
                         onSign={() => handleSign(selectedItem.id)}
                         onReject={() => handleReject(selectedItem.id)}
-                        isOwn={selectedItem.submittedBy === 'current-user'}
+                        isOwn={isOwnEvidence(selectedItem)}
+                        hasVoted={hasVoted(selectedItem.id)}
                     />
                 )}
             </AnimatePresence>

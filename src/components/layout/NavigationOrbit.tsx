@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Shield,
@@ -12,7 +12,10 @@ import {
   Key,
   AlertTriangle,
   Orbit,
+  LogOut,
+  User,
 } from 'lucide-react';
+import { AuthAPI } from '@/lib/api/auth';
 
 const navItems = [
   { href: '/', label: 'Command Center', icon: Orbit },
@@ -24,6 +27,44 @@ const navItems = [
 
 export default function NavigationOrbit() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<{email: string, role: string} | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // Load current user info from localStorage immediately
+  useEffect(() => {
+    setIsClient(true);
+    // Always try localStorage first for immediate display
+    const email = localStorage.getItem('tars-user-email');
+    const role = localStorage.getItem('tars-user-role');
+    if (email) {
+      setCurrentUser({ email, role: role || 'AGENT' });
+    }
+    
+    // Then try API for fresh data
+    const loadUser = async () => {
+      try {
+        const user = await AuthAPI.getCurrentUser();
+        if (user) {
+          setCurrentUser({ email: user.email, role: user.role });
+        }
+      } catch (error) {
+        // Keep localStorage data if API fails
+        console.log('Using localStorage for user info');
+      }
+    };
+    loadUser();
+  }, []);
+
+  // Logout handler
+  const handleLogout = async () => {
+    try {
+      await AuthAPI.logout();
+    } catch (error) {
+      console.warn('Logout API call failed:', error);
+    }
+    router.push('/signin');
+  };
 
   // Panic Button - ESC key handler
   const handlePanic = useCallback(() => {
@@ -113,8 +154,39 @@ export default function NavigationOrbit() {
           })}
         </div>
 
-        {/* Panic Button */}
-        <div className="pt-6 border-t border-white/10">
+        {/* User Info & Controls */}
+        <div className="pt-6 border-t border-white/10 space-y-3">
+          {/* Current User - show email or default */}
+          {isClient && (
+            <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2 text-xs">
+                <User className="w-3 h-3 text-[var(--accent-cyan)]" />
+                <div className="overflow-hidden">
+                  <p className="text-[var(--starlight)] font-medium truncate max-w-[180px]">
+                    {currentUser?.email || 'User'}
+                  </p>
+                  <p className="text-[var(--cosmic-gray)] uppercase text-[10px]">
+                    {currentUser?.role?.replace('_', ' ') || 'AGENT'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Logout Button - Always visible */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg
+                     bg-red-500/10 hover:bg-red-500/20 border border-red-500/30
+                     text-red-400 hover:text-red-300 transition-all text-sm font-medium"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </motion.button>
+          
+          {/* Panic Button */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}

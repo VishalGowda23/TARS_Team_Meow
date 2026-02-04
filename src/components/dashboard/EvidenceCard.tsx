@@ -74,7 +74,7 @@ export default function EvidenceCard({ evidence, index, isSelected, onSelect }: 
 
     // Get signature count
     const signatures = evidence.signatures ?? evidence.validatorSignatures ?? 0;
-    const requiredSignatures = evidence.requiredSignatures ?? 3;
+    const requiredSignatures = 5; // Always use current threshold
 
     return (
         <motion.div
