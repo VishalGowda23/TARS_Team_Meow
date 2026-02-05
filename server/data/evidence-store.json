@@ -1,0 +1,217 @@
+{
+  "submissions": [
+    [
+      "2",
+      {
+        "id": "2",
+        "title": "meow",
+        "brief": "meow",
+        "fileName": "evidence_1770235655011_e21f693001df90db.pdf",
+        "fileSize": "1.8 MB",
+        "category": "Government Corruption",
+        "contentHash": "20a37c959c79d15607d40bf6efccf0802b915f3b9a53f8bedfacf62eeac6d752",
+        "ipfsCid": "bafybeihcmh67muvrdq2cwr64a2yhoqna2fb4flnp6dd6skw5mkcgd4t23m",
+        "txHash": "0xc2ce3b5887978cb9f17a695e4bf81c3be850b02571fd320c44b4a5d2c7541779",
+        "submittedBy": "john.doe@acme-corp.com",
+        "pseudonymousId": "0xDA85fB666cC4Abd2d935f11937150cC948E07209",
+        "submittedAt": "2026-02-04T20:08:02.506Z",
+        "createdAt": "2026-02-04T20:08:02.506Z",
+        "currentSignatures": 0,
+        "requiredSignatures": 3,
+        "validators": [],
+        "status": "orbiting"
+      }
+    ],
+    [
+      "3",
+      {
+        "id": "3",
+        "title": "first evidence",
+        "brief": "test",
+        "fileName": "evidence_1770254489616_0064c64cfca9ee8d.pdf",
+        "fileSize": "1.8 MB",
+        "category": "Corporate Misconduct",
+        "contentHash": "20a37c959c79d15607d40bf6efccf0802b915f3b9a53f8bedfacf62eeac6d752",
+        "ipfsCid": "bafybeihcmh67muvrdq2cwr64a2yhoqna2fb4flnp6dd6skw5mkcgd4t23m",
+        "txHash": "0x3c17e25b0fb0f768bbbff735bbde2663a64ba4617b7adcdc4ae6c4db94878959",
+        "submittedBy": "user1",
+        "pseudonymousId": "0x51Ac02D2Bdf106627592e88B5380d2C30664ef47",
+        "submittedAt": "2026-02-05T01:22:02.900Z",
+        "createdAt": "2026-02-05T01:22:02.900Z",
+        "currentSignatures": 1,
+        "requiredSignatures": 3,
+        "validators": [
+          "user2"
+        ],
+        "status": "orbiting"
+      }
+    ],
+    [
+      "4",
+      {
+        "id": "4",
+        "title": "test 3",
+        "brief": "test 3",
+        "fileName": "evidence_1770255384507_85d09ff063356684.pdf",
+        "fileSize": "1.8 MB",
+        "category": "Financial Fraud",
+        "contentHash": "20a37c959c79d15607d40bf6efccf0802b915f3b9a53f8bedfacf62eeac6d752",
+        "ipfsCid": "bafybeihcmh67muvrdq2cwr64a2yhoqna2fb4flnp6dd6skw5mkcgd4t23m",
+        "txHash": "0xfd314052c59852f3e07414802cc6f3aae34d9f21f63841d1e53f72a9127f1efd",
+        "submittedBy": "user3",
+        "pseudonymousId": "0x8fDca999a19b73CD0263b9CAc3752Ac35E7f3090",
+        "submittedAt": "2026-02-05T01:37:29.949Z",
+        "createdAt": "2026-02-05T01:37:29.949Z",
+        "currentSignatures": 0,
+        "requiredSignatures": 3,
+        "validators": [],
+        "status": "orbiting"
+      }
+    ],
+    [
+      "5",
+      {
+        "id": "5",
+        "title": "test 4",
+        "brief": "test 4",
+        "fileName": "evidence_1770255840963_1aa0b50ea142bc5f.pdf",
+        "fileSize": "205.3 KB",
+        "category": "Government Corruption",
+        "contentHash": "b491e35ebd1319cb9a46dda9f3f9664efb223d015b6fb458ef3060c3cdf04a5f",
+        "ipfsCid": "bafkreifushrv5pitdhfzurw5vhz7szso7mrd2ak3n62fr3zqmdb434ckl4",
+        "txHash": "0x35652745965337a889e3c98e8afd55c7f5aa0fa55952a7b14fba168aea6a36c4",
+        "submittedBy": "user1",
+        "pseudonymousId": "0xDbB60CC101ccee4CF7A0A16975583F3b55Ea5288",
+        "submittedAt": "2026-02-05T01:44:28.039Z",
+        "createdAt": "2026-02-05T01:44:28.040Z",
+        "currentSignatures": 0,
+        "requiredSignatures": 3,
+        "validators": [],
+        "status": "orbiting"
+      }
+    ],
+    [
+      "6",
+      {
+        "id": "6",
+        "title": "test final",
+        "brief": "final testing",
+        "fileName": "evidence_1770256215432_d5b2f1f2e4ee5300.pdf",
+        "fileSize": "1.8 MB",
+        "category": "Government Corruption",
+        "contentHash": "20a37c959c79d15607d40bf6efccf0802b915f3b9a53f8bedfacf62eeac6d752",
+        "ipfsCid": "bafybeihcmh67muvrdq2cwr64a2yhoqna2fb4flnp6dd6skw5mkcgd4t23m",
+        "txHash": "0xd584bd11fe0fbf11e558dd628f3e3f84b90e21ba4b8fa3df9be7798cf81c82b5",
+        "submittedBy": "user1",
+        "pseudonymousId": "0xDbB60CC101ccee4CF7A0A16975583F3b55Ea5288",
+        "submittedAt": "2026-02-05T01:50:41.666Z",
+        "createdAt": "2026-02-05T01:50:41.666Z",
+        "currentSignatures": 0,
+        "requiredSignatures": 3,
+        "validators": [],
+        "status": "orbiting"
+      }
+    ],
+    [
+      "7",
+      {
+        "id": "7",
+        "title": "meow test",
+        "brief": "meow test",
+        "fileName": "evidence_1770256615261_f9b95bec2064570e.pdf",
+        "fileSize": "1.8 MB",
+        "category": "Government Corruption",
+        "contentHash": "20a37c959c79d15607d40bf6efccf0802b915f3b9a53f8bedfacf62eeac6d752",
+        "ipfsCid": "bafybeihcmh67muvrdq2cwr64a2yhoqna2fb4flnp6dd6skw5mkcgd4t23m",
+        "txHash": "0xd07e3ff615c5749cd943e0a47062f3e71bd95b123e2aa4f94109952e2209a6a7",
+        "submittedBy": "user1",
+        "pseudonymousId": "0x82069FA49F29E4527689ca0cCbB82f026E94063c",
+        "submittedAt": "2026-02-05T01:57:26.259Z",
+        "createdAt": "2026-02-05T01:57:26.259Z",
+        "currentSignatures": 0,
+        "requiredSignatures": 3,
+        "validators": [],
+        "status": "orbiting"
+      }
+    ],
+    [
+      "8",
+      {
+        "id": "8",
+        "title": "test 50",
+        "brief": "test 50",
+        "fileName": "evidence_1770258095947_cdfed76942da333c.pdf",
+        "fileSize": "5.4 KB",
+        "category": "Government Corruption",
+        "contentHash": "756532f7f674b61ba629cf905670543eb3076f7771fa381d3f1dac67d74c1e67",
+        "ipfsCid": "bafkreidvmuzpp5tuwyn2mkopsblhavb6wmdw653r7i4b2py5vrt5ota6m4",
+        "txHash": "0x3478acda9a4d683d318c3bf7fc7ac3ad733ff3b7b96f92d7566ea5a4d1fd91b6",
+        "submittedBy": "user1",
+        "pseudonymousId": "0x82069FA49F29E4527689ca0cCbB82f026E94063c",
+        "submittedAt": "2026-02-05T02:21:51.097Z",
+        "createdAt": "2026-02-05T02:21:51.098Z",
+        "currentSignatures": 0,
+        "requiredSignatures": 3,
+        "validators": [],
+        "status": "orbiting"
+      }
+    ],
+    [
+      "9",
+      {
+        "id": "9",
+        "title": "TEST25",
+        "brief": "test",
+        "fileName": "evidence_1770259033869_81abce31ec3edb9d.pdf",
+        "fileSize": "4.6 KB",
+        "category": "Environmental Violation",
+        "contentHash": "41fe677e4387ee2c6c649525d849ec21e13af841758536761e8001e888b51d75",
+        "ipfsCid": "bafkreicb7ztx4q4h5ywgyzevexmet3bb4e5pqqlvqu3hmhuaahuirni5ou",
+        "txHash": "0x5d84b98ae2458ed6f1fdaae167120455f8208d9ac3efcb36c581d14ff6b64bac",
+        "submittedBy": "user1",
+        "pseudonymousId": "0xaC551D2385a97E9bc1Ec66b69Da09098F5923B6e",
+        "submittedAt": "2026-02-05T02:37:27.373Z",
+        "createdAt": "2026-02-05T02:37:27.373Z",
+        "currentSignatures": 2,
+        "requiredSignatures": 3,
+        "validators": [
+          "user2",
+          "user3"
+        ],
+        "status": "orbiting"
+      }
+    ]
+  ],
+  "validations": [
+    [
+      "3-user2",
+      {
+        "submissionId": "3",
+        "validatorEmail": "user2",
+        "isValid": true,
+        "comment": "Evidence validated via TARS frontend",
+        "timestamp": "2026-02-05T01:23:48.806Z"
+      }
+    ],
+    [
+      "9-user2",
+      {
+        "submissionId": "9",
+        "validatorEmail": "user2",
+        "isValid": true,
+        "comment": "Evidence validated via TARS frontend",
+        "timestamp": "2026-02-05T02:38:43.293Z"
+      }
+    ],
+    [
+      "9-user3",
+      {
+        "submissionId": "9",
+        "validatorEmail": "user3",
+        "isValid": true,
+        "comment": "Evidence validated via TARS frontend",
+        "timestamp": "2026-02-05T02:40:41.005Z"
+      }
+    ]
+  ]
+}
