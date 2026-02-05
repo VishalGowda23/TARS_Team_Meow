@@ -1,0 +1,563 @@
+@import "tailwindcss";
+
+/* ========================================
+   TARS - Silver Space Theme
+   ======================================== */
+
+:root {
+  /* Core Colors - Platinum & Metallic Silver */
+  --platinum: #E5E4E2;
+  --silver-bright: #BCC6CC;
+  --silver-medium: #999B9B;
+  --silver-dark: #6a6c6c;
+  --accent-glow: rgba(229, 228, 226, 0.5);
+
+  /* Accent - Cyan for interactive elements */
+  --accent-cyan: #00e5ff;
+  --accent-cyan-glow: rgba(0, 229, 255, 0.4);
+
+  /* Backgrounds */
+  --void-black: #050508;
+  --space-dark: #0a0a10;
+  --space-medium: #101018;
+  --space-light: #181822;
+
+  /* Status Colors */
+  --status-orbiting: #ffd700;
+  --status-verified: #00ff88;
+  --status-transmitted: #00e5ff;
+
+  /* Glassmorphism */
+  --glass-bg: rgba(16, 16, 24, 0.75);
+  --glass-border: rgba(188, 198, 204, 0.2);
+  --glass-blur: 16px;
+
+  /* Metallic Gradients - Platinum/Silver */
+  --metal-gradient: linear-gradient(135deg, #E5E4E2 0%, #BCC6CC 40%, #999B9B 70%, #BCC6CC 100%);
+  --metal-border: linear-gradient(135deg, rgba(229, 228, 226, 0.4) 0%, rgba(188, 198, 204, 0.2) 100%);
+
+  /* Shadows - Silver Glow */
+  --glow-sm: 0 0 10px rgba(229, 228, 226, 0.3);
+  --glow-md: 0 0 20px rgba(229, 228, 226, 0.4);
+  --glow-lg: 0 0 40px rgba(229, 228, 226, 0.5);
+
+  /* Fonts */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+@theme inline {
+  --color-background: var(--void-black);
+  --color-foreground: var(--silver-bright);
+  --color-accent: var(--accent-cyan);
+  --color-space-dark: var(--space-dark);
+  --color-space-medium: var(--space-medium);
+  --color-silver: var(--silver-primary);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+/* ========================================
+   Global Styles
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--void-black);
+  color: var(--silver-bright);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ========================================
+   Typography
+   ======================================== */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--silver-bright);
+}
+
+code,
+pre,
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* ========================================
+   Starfield Background
+   ======================================== */
+
+.starfield {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(0, 229, 255, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(147, 51, 234, 0.03) 0%, transparent 50%),
+    var(--void-black);
+}
+
+.starfield::before,
+.starfield::after {
+  content: '';
+  position: absolute;
+  width: 300%;
+  height: 300%;
+  top: -100%;
+  left: -100%;
+  background-image:
+    radial-gradient(2px 2px at 100px 150px, #ffffff, transparent),
+    radial-gradient(3px 3px at 200px 250px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 350px 100px, #ffffff, transparent),
+    radial-gradient(2px 2px at 500px 300px, rgba(192, 192, 192, 0.8), transparent),
+    radial-gradient(1.5px 1.5px at 650px 200px, #ffffff, transparent),
+    radial-gradient(2px 2px at 800px 350px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 950px 150px, rgba(192, 192, 192, 0.9), transparent),
+    radial-gradient(2.5px 2.5px at 1100px 280px, #ffffff, transparent),
+    radial-gradient(1px 1px at 1250px 180px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 1400px 320px, rgba(192, 192, 192, 0.7), transparent);
+  background-size: 1500px 500px;
+  animation: starDrift 120s linear infinite;
+}
+
+.starfield::after {
+  background-image:
+    radial-gradient(1.5px 1.5px at 80px 120px, rgba(0, 229, 255, 0.5), transparent),
+    radial-gradient(2px 2px at 280px 80px, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 420px 200px, rgba(0, 229, 255, 0.3), transparent),
+    radial-gradient(1.5px 1.5px at 600px 150px, rgba(192, 192, 192, 0.5), transparent),
+    radial-gradient(2px 2px at 780px 280px, rgba(0, 229, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 920px 100px, rgba(255, 255, 255, 0.3), transparent);
+  background-size: 1200px 400px;
+  animation: starDrift 80s linear infinite reverse;
+  opacity: 0.7;
+}
+
+@keyframes starDrift {
+  from {
+    transform: translateX(0) translateY(0);
+  }
+
+  to {
+    transform: translateX(-1500px) translateY(-500px);
+  }
+}
+
+/* ========================================
+   Space Debris Styles
+   ======================================== */
+
+.debris {
+  position: absolute;
+  background: linear-gradient(135deg, var(--silver-medium) 0%, var(--silver-dark) 100%);
+  border-radius: 2px;
+  box-shadow: 0 0 10px rgba(192, 192, 192, 0.2);
+}
+
+.asteroid {
+  background: linear-gradient(135deg, #4a4a52 0%, #2a2a30 50%, #3a3a42 100%);
+  border-radius: 40% 60% 50% 50% / 60% 40% 60% 40%;
+  box-shadow:
+    inset -3px -3px 8px rgba(0, 0, 0, 0.5),
+    inset 2px 2px 6px rgba(255, 255, 255, 0.1),
+    0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+.satellite {
+  background: var(--metal-gradient);
+  box-shadow:
+    0 0 10px rgba(0, 229, 255, 0.3),
+    inset 0 0 5px rgba(255, 255, 255, 0.2);
+}
+
+/* ========================================
+   Glassmorphism - Metallic
+   ======================================== */
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-subtle {
+  background: rgba(16, 16, 24, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(192, 192, 192, 0.08);
+  border-radius: 12px;
+}
+
+/* ========================================
+   Pulse Glow Effects
+   ======================================== */
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 5px var(--accent-cyan-glow),
+      0 0 20px var(--accent-cyan-glow),
+      0 0 40px rgba(0, 229, 255, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 10px var(--accent-cyan-glow),
+      0 0 40px var(--accent-cyan-glow),
+      0 0 80px rgba(0, 229, 255, 0.3);
+  }
+}
+
+.text-glow {
+  text-shadow: 0 0 10px var(--accent-cyan-glow),
+    0 0 20px var(--accent-cyan-glow);
+}
+
+/* ========================================
+   Buttons - Metallic Style
+   ======================================== */
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-cyan) 0%, #00b8d4 100%);
+  color: var(--void-black);
+  font-weight: 700;
+  padding: 14px 36px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 20px rgba(0, 229, 255, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glow-md), 0 8px 30px rgba(0, 229, 255, 0.4);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--silver-bright);
+  border: 2px solid var(--silver-medium);
+  padding: 12px 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  box-shadow: var(--glow-sm);
+}
+
+.btn-panic {
+  background: linear-gradient(135deg, #ff3d3d 0%, #cc0000 100%);
+  color: white;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.btn-panic:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 25px rgba(255, 61, 61, 0.5);
+}
+
+/* ========================================
+   Status Badges - Metallic
+   ======================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.badge-orbiting {
+  background: rgba(255, 215, 0, 0.15);
+  color: var(--status-orbiting);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.1);
+}
+
+.badge-verified {
+  background: rgba(0, 255, 136, 0.15);
+  color: var(--status-verified);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.1);
+}
+
+.badge-transmitted {
+  background: rgba(0, 229, 255, 0.15);
+  color: var(--status-transmitted);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.1);
+}
+
+/* ========================================
+   Terminal Style - Enhanced
+   ======================================== */
+
+.terminal {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.9) 0%, rgba(5, 5, 10, 0.95) 100%);
+  border: 1px solid var(--silver-dark);
+  border-radius: 10px;
+  padding: 18px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--silver-bright);
+  overflow: hidden;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(192, 192, 192, 0.05);
+}
+
+.terminal-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.terminal-prompt {
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.terminal-success {
+  color: var(--status-verified);
+}
+
+.terminal-warning {
+  color: var(--status-orbiting);
+}
+
+/* ========================================
+   Cards - Metallic Glass
+   ======================================== */
+
+.card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 28px;
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(192, 192, 192, 0.3), transparent);
+}
+
+.card:hover {
+  border-color: rgba(0, 229, 255, 0.3);
+  transform: translateY(-6px);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(0, 229, 255, 0.1);
+}
+
+/* ========================================
+   Scrollbar - Metallic
+   ======================================== */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--space-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--silver-dark) 0%, var(--silver-medium) 100%);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--silver-medium) 0%, var(--silver-bright) 100%);
+}
+
+/* ========================================
+   Selection
+   ======================================== */
+
+::selection {
+  background: var(--accent-cyan);
+  color: var(--void-black);
+}
+
+/* ========================================
+   Focus States
+   ======================================== */
+
+*:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* ========================================
+   Inputs - Metallic
+   ======================================== */
+
+.input {
+  background: rgba(5, 5, 8, 0.8);
+  border: 1px solid var(--silver-dark);
+  border-radius: 8px;
+  padding: 14px 18px;
+  color: var(--silver-bright);
+  font-family: var(--font-body);
+  font-size: 14px;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.15);
+}
+
+.input::placeholder {
+  color: var(--silver-dark);
+}
+
+textarea.input {
+  resize: vertical;
+  min-height: 130px;
+}
+
+/* ========================================
+   Metallic Text Styles
+   ======================================== */
+
+.text-metallic {
+  background: var(--metal-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-metallic-glow {
+  background: linear-gradient(135deg,
+      #E5E4E2 0%,
+      #BCC6CC 20%,
+      #999B9B 40%,
+      #E5E4E2 50%,
+      #999B9B 60%,
+      #BCC6CC 80%,
+      #E5E4E2 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: silverShimmer 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px rgba(229, 228, 226, 0.6)) drop-shadow(0 0 20px rgba(188, 198, 204, 0.5)) drop-shadow(0 0 40px rgba(229, 228, 226, 0.3));
+}
+
+@keyframes silverShimmer {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.text-silver {
+  color: var(--platinum);
+}
+
+.text-silver-glow {
+  color: var(--platinum);
+  text-shadow:
+    0 0 10px rgba(229, 228, 226, 0.9),
+    0 0 20px rgba(188, 198, 204, 0.7),
+    0 0 40px rgba(229, 228, 226, 0.5),
+    0 0 60px rgba(188, 198, 204, 0.3);
+  animation: silverPulse 2s ease-in-out infinite;
+}
+
+@keyframes silverPulse {
+
+  0%,
+  100% {
+    text-shadow:
+      0 0 10px rgba(229, 228, 226, 0.9),
+      0 0 20px rgba(188, 198, 204, 0.7),
+      0 0 40px rgba(229, 228, 226, 0.5);
+  }
+
+  50% {
+    text-shadow:
+      0 0 15px rgba(229, 228, 226, 1),
+      0 0 30px rgba(188, 198, 204, 0.9),
+      0 0 60px rgba(229, 228, 226, 0.7),
+      0 0 80px rgba(188, 198, 204, 0.5);
+  }
+}
