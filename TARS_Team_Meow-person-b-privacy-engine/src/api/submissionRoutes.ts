@@ -68,11 +68,20 @@ router.post('/submit', requireTor, upload.single('evidence'), async (req: Reques
     }
 
     const { buffer, originalname, mimetype } = req.file;
-    logger.info(`Processing submission: ${requestId}`);
+    logger.info(`Processing submission: ${requestId}, file: ${originalname}, type: ${mimetype}, size: ${buffer.length}`);
 
+    logger.info('Step 1: Stripping metadata...');
     const strippedFile = await metadataStripper.stripMetadata(buffer, originalname, mimetype);
+    logger.info(`Step 1 complete: stripped ${strippedFile.strippingReport.removedFields.length} fields`);
+    
+    logger.info('Step 2: Generating hash...');
     const evidenceHash = evidenceHasher.generateHash(strippedFile.cleanBuffer);
+    logger.info(`Step 2 complete: hash ${evidenceHash.sha256.substring(0, 16)}...`);
+    
+    logger.info('Step 3: Staging evidence...');
     const staged = await encryptedStaging.stageEvidence(strippedFile.cleanBuffer, evidenceHash);
+    logger.info(`Step 3 complete: stageId ${staged.stageId}`);
+    
     const submissionId = uuidv4();
 
     const receipt: SubmissionReceipt = {

@@ -145,7 +145,11 @@ export class MetadataStripper {
     const metadata: FileMetadata = {};
 
     try {
-      const pdfDoc = await PDFDocument.load(buffer);
+      // Try to load PDF with ignoreEncryption option for better compatibility
+      const pdfDoc = await PDFDocument.load(buffer, { 
+        ignoreEncryption: true,
+        updateMetadata: false 
+      });
 
       const existingTitle = pdfDoc.getTitle();
       const existingAuthor = pdfDoc.getAuthor();
@@ -195,8 +199,14 @@ export class MetadataStripper {
 
       return { cleanBuffer, metadata, removedFields };
     } catch (error) {
-      logger.error('PDF metadata stripping failed:', error);
-      throw error;
+      // If PDF parsing fails, return original buffer with warning
+      // This handles PDFs with invalid structures that pdf-lib can't parse
+      logger.warn('PDF metadata stripping failed, returning original file:', error instanceof Error ? error.message : error);
+      return { 
+        cleanBuffer: buffer, 
+        metadata: {}, 
+        removedFields: ['pdf_stripping_skipped_incompatible_format'] 
+      };
     }
   }
 

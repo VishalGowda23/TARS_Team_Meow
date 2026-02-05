@@ -64,7 +64,9 @@ router.post('/register', async (req, res) => {
       arweaveId,
       stageId,
       timestamp,
-      encryptionApplied 
+      encryptionApplied,
+      submittedBy,  // User email who submitted
+      userId        // User ID who submitted
     } = req.body;
 
     // Validate required fields
@@ -86,6 +88,7 @@ router.post('/register', async (req, res) => {
     console.log('📝 Registering evidence on blockchain...');
     console.log('  Hash:', evidenceHash.substring(0, 16) + '...');
     console.log('  IPFS:', ipfsCid);
+    console.log('  Submitter:', submittedBy || 'unknown');
 
     // Try to use real contract first
     if (useRealContract) {
@@ -100,6 +103,8 @@ router.post('/register', async (req, res) => {
           blockNumber: result.blockNumber,
           status: 'PENDING',
           registeredAt: new Date().toISOString(),
+          submittedBy: submittedBy || null,
+          userId: userId || null,
           votes: { approvals: 0, rejections: 0, voters: [] }
         };
         evidenceRegistry.set(result.evidenceId, record);
@@ -135,11 +140,13 @@ router.post('/register', async (req, res) => {
       status: 'PENDING',
       registeredAt: new Date().toISOString(),
       encryptionApplied: encryptionApplied || false,
+      submittedBy: submittedBy || null,  // Store submitter email
+      userId: userId || null,            // Store submitter user ID
       votes: { approvals: 0, rejections: 0, voters: [] }
     };
 
     evidenceRegistry.set(evidenceId, record);
-    console.log('✅ Evidence registered (mock):', evidenceId);
+    console.log('✅ Evidence registered (mock):', evidenceId, 'by:', submittedBy || 'unknown');
 
     res.status(200).json({
       success: true,
@@ -233,9 +240,32 @@ router.get('/status/:evidenceId', async (req, res) => {
 router.post('/vote/:evidenceId', async (req, res) => {
   try {
     const { evidenceId } = req.params;
-    const { validatorAddress, approve, reason } = req.body;
+    const { validatorAddress, approve, reason, submitterAddress } = req.body;
 
     console.log(`🗳️ Vote received: evidence=${evidenceId}, approve=${approve}, validator=${validatorAddress}`);
+
+    // SECURITY CHECK: Prevent self-voting
+    // First, try to get submitter from stored evidence record
+    const storedRecord = evidenceRegistry.get(evidenceId);
+    const submitterFromRecord = storedRecord?.submittedBy;
+    const effectiveSubmitter = submitterAddress || submitterFromRecord;
+
+    console.log(`   Validator: ${validatorAddress}, Submitter: ${effectiveSubmitter}`);
+
+    if (effectiveSubmitter && validatorAddress) {
+      const validatorLower = validatorAddress.toLowerCase().trim();
+      const submitterLower = effectiveSubmitter.toLowerCase().trim();
+      
+      // Check if validator is the same as submitter (by address or email)
+      if (validatorLower === submitterLower || 
+          validatorLower.split('@')[0] === submitterLower.split('@')[0]) {
+        console.log(`🚫 BLOCKED: Self-voting attempt by ${validatorAddress} on their own evidence`);
+        return res.status(403).json({
+          success: false,
+          error: 'You cannot vote on your own evidence submission'
+        });
+      }
+    }
 
     // Try real contract first if evidence ID is numeric (on-chain)
     if (useRealContract && !isNaN(evidenceId)) {
